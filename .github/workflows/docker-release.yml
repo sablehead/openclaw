@@ -27,6 +27,8 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
+permissions: {}
+
 jobs:
   validate_manual_backfill:
     if: github.event_name == 'workflow_dispatch'

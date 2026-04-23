@@ -37,6 +37,8 @@ env:
   # Pinned to a reviewed ClawHub commit so release behavior stays reproducible.
   CLAWHUB_REF: "facf20ceb6cc459e2872d941e71335a784bbc55c"
 
+permissions: {}
+
 jobs:
   preview_plugins_clawhub:
     runs-on: ubuntu-latest
