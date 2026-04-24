@@ -307,11 +307,15 @@ RUN install -d -m 0755 -o node -g node /home/node/.config && \
     stat -c '%U:%G %a' /home/node/.config | grep -qx 'node:node 755' && \
     stat -c '%U:%G %a' /home/node/.config/openclaw | grep -qx 'node:node 700'
 
+# Fly.io startup script: merges required gateway settings on every start so
+# the persistent-volume config is never left without controlUi overrides.
+COPY --chown=node:node scripts/fly-start.sh /app/fly-start.sh
+RUN chmod +x /app/fly-start.sh
+
 ENV NODE_ENV=production
 
-# Security hardening: Run as non-root user
-# The node:24-bookworm image includes a 'node' user (uid 1000)
-# This reduces the attack surface by preventing container escape via root privileges
+# Security hardening: run as non-root. Fly.io respects this directive and mounts
+# persistent volumes with the same uid/gid, so /data is already owned by node.
 USER node
 
 # Start gateway server with default config.
