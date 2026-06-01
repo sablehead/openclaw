@@ -8,6 +8,9 @@ primary_region = 'nrt'
 
 [build]
   dockerfile = 'Dockerfile'
+  [build.args]
+    OPENCLAW_DOCKER_APT_PACKAGES = "tmux jq ffmpeg yt-dlp"
+    OPENCLAW_INSTALL_SKILL_DEPS = "1"
 
 [env]
   NODE_ENV = 'production'
