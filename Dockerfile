@@ -314,6 +314,51 @@ RUN chmod +x /app/fly-start.sh
 
 ENV NODE_ENV=production
 
+# Optional: Install skill-dependency CLIs (gh, gemini, clawhub, blogwatcher,
+# gifgrep, himalaya, whisper, nano-pdf).
+# Build with: docker build --build-arg OPENCLAW_INSTALL_SKILL_DEPS=1 .
+# Adds ~500MB for Go, Python, and various CLI binaries.
+ARG OPENCLAW_INSTALL_SKILL_DEPS=""
+ENV GOPATH=/usr/local/go-packages
+ENV PATH="${PATH}:/usr/local/go/bin:/usr/local/go-packages/bin"
+RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      python3 python3-pip && \
+    GOARCH="$(dpkg --print-architecture)" && \
+    curl -fsSL "https://go.dev/dl/go1.24.2.linux-${GOARCH}.tar.gz" \
+      | tar -xz -C /usr/local && \
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gh && \
+    npm install -g clawhub @google/gemini-cli && \
+    go install github.com/Hyaxia/blogwatcher/cmd/blogwatcher@latest && \
+    go install github.com/steipete/gifgrep/cmd/gifgrep@latest && \
+    ARCH="$(dpkg --print-architecture)" && \
+    case "$ARCH" in \
+      amd64) HIM_ARCH="x86_64-unknown-linux-musl" ;; \
+      arm64) HIM_ARCH="aarch64-unknown-linux-musl" ;; \
+      *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; \
+    esac && \
+    HIM_URL="$(curl -fsSL https://api.github.com/repos/pimalaya/himalaya/releases/latest \
+      | grep '"browser_download_url"' \
+      | grep "${HIM_ARCH}.tar.gz" \
+      | head -1 \
+      | sed 's/.*"browser_download_url": "\(.*\)".*/\1/')" && \
+    if [ -n "$HIM_URL" ]; then \
+      curl -fsSL "$HIM_URL" | tar -xz -C /usr/local/bin himalaya; \
+    else \
+      echo "WARNING: himalaya URL not found, skipping (install manually via 'cargo install himalaya')"; \
+    fi && \
+    pip3 install --break-system-packages openai-whisper nano-pdf
+
 # Security hardening: run as non-root. Fly.io respects this directive and mounts
 # persistent volumes with the same uid/gid, so /data is already owned by node.
 USER node

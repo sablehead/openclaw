@@ -19,6 +19,7 @@ cfg.gateway = cfg.gateway || {};
 cfg.gateway.controlUi = cfg.gateway.controlUi || {};
 cfg.gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback = true;
 cfg.gateway.controlUi.dangerouslyDisableDeviceAuth = true;
+cfg.gateway.trustedProxies = ['172.16.0.0/12'];
 cfg.agents = cfg.agents || {};
 cfg.agents.defaults = cfg.agents.defaults || {};
 cfg.agents.defaults.workspace = '/data/workspace';
