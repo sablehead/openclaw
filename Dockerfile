@@ -318,9 +318,12 @@ ENV NODE_ENV=production
 # gifgrep, himalaya, whisper, nano-pdf).
 # Build with: docker build --build-arg OPENCLAW_INSTALL_SKILL_DEPS=1 .
 # Adds ~500MB for Go, Python, and various CLI binaries.
+# Split into separate layers so each is small enough to push to the registry.
 ARG OPENCLAW_INSTALL_SKILL_DEPS=""
 ENV GOPATH=/usr/local/go-packages
 ENV PATH="${PATH}:/usr/local/go/bin:/usr/local/go-packages/bin"
+
+# Layer 1: Python + Go runtime (~200MB)
 RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
     if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
@@ -330,17 +333,35 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
       python3 python3-pip && \
     GOARCH="$(dpkg --print-architecture)" && \
     curl -fsSL "https://go.dev/dl/go1.24.2.linux-${GOARCH}.tar.gz" \
-      | tar -xz -C /usr/local && \
+      | tar -xz -C /usr/local
+
+# Layer 2: GitHub CLI (~50MB)
+RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=openclaw-bookworm-apt-lists,target=/var/lib/apt,sharing=locked \
+    if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
       -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
       > /etc/apt/sources.list.d/github-cli.list && \
     apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gh && \
-    npm install -g clawhub @google/gemini-cli && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends gh
+
+# Layer 3: npm CLIs (~100MB)
+RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
+    npm install -g clawhub @google/gemini-cli
+
+# Layer 4: Go binaries (~50MB)
+RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
     go install github.com/Hyaxia/blogwatcher/cmd/blogwatcher@latest && \
-    go install github.com/steipete/gifgrep/cmd/gifgrep@latest && \
+    go install github.com/steipete/gifgrep/cmd/gifgrep@latest
+
+# Layer 5: himalaya email CLI (~20MB, optional)
+RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
     ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
       amd64) HIM_ARCH="x86_64-unknown-linux-musl" ;; \
@@ -356,7 +377,11 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
       curl -fsSL "$HIM_URL" | tar -xz -C /usr/local/bin himalaya; \
     else \
       echo "WARNING: himalaya URL not found, skipping (install manually via 'cargo install himalaya')"; \
-    fi && \
+    fi
+
+# Layer 6: pip packages (~100MB)
+RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    set -eux; \
     pip3 install --break-system-packages openai-whisper nano-pdf
 
 # Security hardening: run as non-root. Fly.io respects this directive and mounts
