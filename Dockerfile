@@ -394,7 +394,7 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
 # Layer 6: pip packages (~100MB)
 RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     set -eux; \
-    pip3 install --break-system-packages openai-whisper nano-pdf
+    pip3 install --break-system-packages nano-pdf
 
 # Security hardening: run as non-root. Fly.io respects this directive and mounts
 # persistent volumes with the same uid/gid, so /data is already owned by node.
