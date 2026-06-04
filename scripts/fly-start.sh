@@ -6,6 +6,9 @@ CONFIG_FILE="$STATE_DIR/openclaw.json"
 
 mkdir -p "$STATE_DIR"
 
+# Ensure state files are owned by the node user (doctor --fix can reset to root).
+chown -R node:node "$STATE_DIR" 2>/dev/null || true
+
 # Ensure required gateway.controlUi flags are always present.
 # The dashboard may overwrite openclaw.json without these keys; re-apply on every start.
 OPENCLAW_CONFIG_FILE="$CONFIG_FILE" node -e "
@@ -38,6 +41,7 @@ cfg.tools = cfg.tools || {};
 cfg.tools.allow = cfg.tools.allow || [];
 if (!cfg.tools.allow.includes('web_fetch')) cfg.tools.allow.push('web_fetch');
 if (!cfg.tools.allow.includes('write')) cfg.tools.allow.push('write');
+if (!cfg.tools.allow.includes('web_search')) cfg.tools.allow.push('web_search');
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 
@@ -233,6 +237,32 @@ https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=js
 時刻はJST（+09:00）で返ってくる。
 「今日」「明日」などの質問は今日の日付（JST）を基準にdateパラメーターを指定すること。
 任意の日付を指定でき、過去・未来どちらも取得できる。
+
+## Google Places API (New)
+
+場所の検索（カフェ、レストラン、施設など）にはこのAPIを使う。
+
+エンドポイント: https://places.googleapis.com/v1/places:searchText (POST)
+APIキー: ${GOOGLE_PLACES_API_KEY}
+
+リクエストヘッダー:
+- Content-Type: application/json
+- X-Goog-Api-Key: ${GOOGLE_PLACES_API_KEY}
+- X-Goog-FieldMask: places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.regularOpeningHours
+
+リクエストボディ（JSON）:
+{
+  "textQuery": "検索クエリ（例: *** カフェ）",
+  "languageCode": "ja",
+  "maxResultCount": 5
+}
+
+レスポンスの読み方:
+- places[].displayName.text: 店名
+- places[].formattedAddress: 住所
+- places[].rating: 評価（5点満点）
+- places[].userRatingCount: レビュー数
+- places[].regularOpeningHours.openNow: 今営業中かどうか
 TOOLSEOF
 
 exec node openclaw.mjs gateway --allow-unconfigured --port "${PORT:-3000}" --bind lan
