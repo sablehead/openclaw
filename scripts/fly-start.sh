@@ -6,8 +6,9 @@ CONFIG_FILE="$STATE_DIR/openclaw.json"
 
 mkdir -p "$STATE_DIR"
 
-# Ensure state files are owned by the node user (doctor --fix can reset to root).
-chown -R node:node "$STATE_DIR" 2>/dev/null || true
+# Ensure openclaw.json is writable. doctor --fix can reset it to root ownership;
+# chmod 666 lets the node user write it even when root owns it.
+chmod 666 "$STATE_DIR/openclaw.json" 2>/dev/null || true
 
 # Ensure required gateway.controlUi flags are always present.
 # The dashboard may overwrite openclaw.json without these keys; re-apply on every start.
