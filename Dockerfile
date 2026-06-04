@@ -323,6 +323,10 @@ RUN install -d -m 0755 -o node -g node /home/node/.config && \
 # the persistent-volume config is never left without controlUi overrides.
 COPY --chown=node:node scripts/fly-start.sh /app/fly-start.sh
 RUN chmod +x /app/fly-start.sh
+# Root-owned wrapper: fixes file ownership on /data before handing off to fly-start.sh as node.
+# openclaw doctor --fix can reset /data/openclaw.json to root; this ensures node can always write it.
+COPY scripts/fly-root-init.sh /app/fly-root-init.sh
+RUN chmod +x /app/fly-root-init.sh
 
 ENV NODE_ENV=production
 
@@ -396,9 +400,11 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     set -eux; \
     pip3 install --break-system-packages nano-pdf
 
-# Security hardening: run as non-root. Fly.io respects this directive and mounts
-# persistent volumes with the same uid/gid, so /data is already owned by node.
-USER node
+# Security hardening: default Docker CMD still runs as root; Fly.io deployments
+# use fly-root-init.sh which chown's /data then drops to node via `exec su node`.
+# If running this image outside Fly, pass `-u node` to `docker run` or use the
+# fly-root-init.sh entrypoint wrapper.
+# USER node
 
 # Start gateway server with default config.
 # Binds to loopback (127.0.0.1) by default for security.

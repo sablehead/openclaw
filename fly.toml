@@ -19,7 +19,7 @@ primary_region = 'nrt'
   OPENCLAW_STATE_DIR = '/data'
 
 [processes]
-  app = "/app/fly-start.sh"
+  app = "/app/fly-root-init.sh"
 
 [[mounts]]
   source = 'openclaw_data'
