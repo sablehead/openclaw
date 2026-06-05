@@ -159,6 +159,23 @@ ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST
 LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm-slim" \
   org.opencontainers.image.base.digest="${OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST}"
 
+# ── himalaya OAuth2 builder ─────────────────────────────────────
+# Builds himalaya from source with the oauth2 cargo feature, which is not
+# included in the official release binaries. Runs as an independent stage
+# so BuildKit can build it in parallel with other stages.
+FROM rust:1-slim-bookworm AS himalaya-builder
+ARG OPENCLAW_INSTALL_SKILL_DEPS=""
+RUN --mount=type=cache,id=himalaya-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
+    --mount=type=cache,id=himalaya-cargo-git,target=/usr/local/cargo/git,sharing=locked \
+    set -eux; mkdir -p /out; \
+    if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      pkg-config libssl-dev && \
+    cargo install himalaya --locked --features oauth2 && \
+    strip /usr/local/cargo/bin/himalaya && \
+    cp /usr/local/cargo/bin/himalaya /out/
+
 # ── Stage 3: Runtime ────────────────────────────────────────────
 FROM base-runtime
 ARG OPENCLAW_BUNDLED_PLUGIN_DIR
@@ -389,24 +406,13 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
       echo "WARNING: sag URL not found, skipping"; \
     fi
 
-# Layer 5: himalaya email CLI (~20MB, optional)
-RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
-    set -eux; \
-    ARCH="$(dpkg --print-architecture)" && \
-    case "$ARCH" in \
-      amd64) HIM_ARCH="x86_64-linux" ;; \
-      arm64) HIM_ARCH="aarch64-linux" ;; \
-      *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; \
-    esac && \
-    HIM_URL="$(curl -fsSL https://api.github.com/repos/pimalaya/himalaya/releases/latest \
-      | grep '"browser_download_url"' \
-      | grep "himalaya\.${HIM_ARCH}\.tgz" \
-      | head -1 \
-      | sed 's/.*"browser_download_url": "\(.*\)".*/\1/')" && \
-    if [ -n "$HIM_URL" ]; then \
-      curl -fsSL "$HIM_URL" | tar -xz -C /usr/local/bin himalaya; \
-    else \
-      echo "WARNING: himalaya URL not found, skipping" >&2; \
+# Layer 5: himalaya email CLI (OAuth2-enabled, built from source)
+# The official release binaries lack the oauth2 cargo feature.
+# The himalaya-builder stage compiles it with --features oauth2.
+RUN --mount=from=himalaya-builder,source=/out,target=/tmp/himalaya-out \
+    if [ -f /tmp/himalaya-out/himalaya ]; then \
+      cp /tmp/himalaya-out/himalaya /usr/local/bin/himalaya && \
+      chmod +x /usr/local/bin/himalaya; \
     fi
 
 # Layer 6: pip packages (~100MB)
