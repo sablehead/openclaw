@@ -130,8 +130,8 @@ type = "tls"
 [accounts.Gmail.backend.auth]
 type = "oauth2"
 client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
-client-secret = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
-refresh-token = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
+client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
+refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
 token-url = "https://oauth2.googleapis.com/token"
 scopes = ["https://mail.google.com/"]
 
@@ -146,8 +146,8 @@ type = "start-tls"
 [accounts.Gmail.message-writer.auth]
 type = "oauth2"
 client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
-client-secret = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
-refresh-token = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
+client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
+refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
 token-url = "https://oauth2.googleapis.com/token"
 scopes = ["https://mail.google.com/"]
 HIMALAYA_EOF
