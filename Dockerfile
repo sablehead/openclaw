@@ -394,19 +394,19 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     set -eux; \
     ARCH="$(dpkg --print-architecture)" && \
     case "$ARCH" in \
-      amd64) HIM_ARCH="x86_64-unknown-linux-musl" ;; \
-      arm64) HIM_ARCH="aarch64-unknown-linux-musl" ;; \
+      amd64) HIM_ARCH="x86_64-linux" ;; \
+      arm64) HIM_ARCH="aarch64-linux" ;; \
       *) echo "Unsupported arch: $ARCH" >&2; exit 1 ;; \
     esac && \
     HIM_URL="$(curl -fsSL https://api.github.com/repos/pimalaya/himalaya/releases/latest \
       | grep '"browser_download_url"' \
-      | grep "${HIM_ARCH}.tar.gz" \
+      | grep "himalaya\.${HIM_ARCH}\.tgz" \
       | head -1 \
       | sed 's/.*"browser_download_url": "\(.*\)".*/\1/')" && \
     if [ -n "$HIM_URL" ]; then \
       curl -fsSL "$HIM_URL" | tar -xz -C /usr/local/bin himalaya; \
     else \
-      echo "WARNING: himalaya URL not found, skipping (install manually via 'cargo install himalaya')"; \
+      echo "WARNING: himalaya URL not found, skipping" >&2; \
     fi
 
 # Layer 6: pip packages (~100MB)
