@@ -111,6 +111,86 @@ fs.writeFileSync(wsDir + '/google-calendar.json', JSON.stringify({
 " || true
 fi
 
+# Write himalaya config for Gmail OAuth2 if credentials are provided.
+if [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ]; then
+  GC_CLIENT_ID="${GOOGLE_CALENDAR_CLIENT_ID}" \
+  GC_CLIENT_SECRET="${GOOGLE_CALENDAR_CLIENT_SECRET}" \
+  GC_REFRESH_TOKEN="${GOOGLE_GMAIL_REFRESH_TOKEN}" \
+  node -e "
+const fs = require('fs');
+const os = require('os');
+const configDir = os.homedir() + '/.config/himalaya';
+fs.mkdirSync(configDir, { recursive: true });
+const config = {
+  accounts: {
+    Gmail: {
+      email: 'redacted@example.com',
+      display_name: 'User',
+      backend: {
+        type: 'imap',
+        host: 'imap.gmail.com',
+        port: 993,
+        encryption: { type: 'tls' },
+        auth: {
+          type: 'oauth2',
+          client_id: process.env.GC_CLIENT_ID,
+          client_secret: process.env.GC_CLIENT_SECRET,
+          refresh_token: process.env.GC_REFRESH_TOKEN,
+          token_url: 'https://oauth2.googleapis.com/token',
+          scopes: ['https://mail.google.com/']
+        }
+      },
+      message_writer: {
+        type: 'smtp',
+        host: 'smtp.gmail.com',
+        port: 587,
+        encryption: { type: 'start-tls' },
+        auth: {
+          type: 'oauth2',
+          client_id: process.env.GC_CLIENT_ID,
+          client_secret: process.env.GC_CLIENT_SECRET,
+          refresh_token: process.env.GC_REFRESH_TOKEN,
+          token_url: 'https://oauth2.googleapis.com/token',
+          scopes: ['https://mail.google.com/']
+        }
+      }
+    }
+  }
+};
+fs.writeFileSync(configDir + '/config.toml', Object.entries(config.accounts).map(([name, acc]) => \`
+[accounts.\${name}]
+email = "\${acc.email}"
+display-name = "\${acc.display_name}"
+
+[accounts.\${name}.backend]
+type = "\${acc.backend.type}"
+host = "\${acc.backend.host}"
+port = \${acc.backend.port}
+
+[accounts.\${name}.backend.auth]
+type = "oauth2"
+client-id = "\${acc.backend.auth.client_id}"
+client-secret = "\${acc.backend.auth.client_secret}"
+refresh-token = "\${acc.backend.auth.refresh_token}"
+token-url = "\${acc.backend.auth.token_url}"
+scopes = [\${acc.backend.auth.scopes.map(s => '"' + s + '"').join(', ')}]
+
+[accounts.\${name}.message-writer]
+type = "\${acc.message_writer.type}"
+host = "\${acc.message_writer.host}"
+port = \${acc.message_writer.port}
+
+[accounts.\${name}.message-writer.auth]
+type = "oauth2"
+client-id = "\${acc.message_writer.auth.client_id}"
+client-secret = "\${acc.message_writer.auth.client_secret}"
+refresh-token = "\${acc.message_writer.auth.refresh_token}"
+token-url = "\${acc.message_writer.auth.token_url}"
+scopes = [\${acc.message_writer.auth.scopes.map(s => '"' + s + '"').join(', ')}]
+\`).join(''));
+" || true
+fi
+
 # Pre-populate workspace files so the bootstrap ritual is skipped on every cold start.
 WORKSPACE_DIR="/data/workspace"
 mkdir -p "$WORKSPACE_DIR"
