@@ -355,7 +355,7 @@ RUN --mount=type=cache,id=openclaw-bookworm-apt-cache,target=/var/cache/apt,shar
 # Layer 3: npm CLIs (~100MB)
 RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     set -eux; \
-    npm install -g clawhub @google/gemini-cli
+    npm install -g clawhub @google/gemini-cli @anthropic-ai/claude-code
 
 # Layer 4: Go binaries (~50MB)
 RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
