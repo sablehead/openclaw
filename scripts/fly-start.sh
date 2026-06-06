@@ -119,37 +119,39 @@ if [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ]; then
 email = "redacted@example.com"
 display-name = "User"
 
-[accounts.Gmail.backend]
-type = "imap"
-host = "imap.gmail.com"
-port = 993
+backend.type = "imap"
+backend.host = "imap.gmail.com"
+backend.port = 993
+backend.encryption.type = "tls"
+backend.login = "redacted@example.com"
 
-[accounts.Gmail.backend.encryption]
-type = "tls"
+backend.auth.type = "oauth2"
+backend.auth.method = "xoauth2"
+backend.auth.client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
+backend.auth.client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
+backend.auth.auth-url = "https://accounts.google.com/o/oauth2/v2/auth"
+backend.auth.token-url = "https://oauth2.googleapis.com/token"
+backend.auth.access-token.raw = ""
+backend.auth.refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
+backend.auth.pkce = false
+backend.auth.scopes = ["https://mail.google.com/"]
 
-[accounts.Gmail.backend.auth]
-type = "oauth2"
-client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
-client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
-refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
-token-url = "https://oauth2.googleapis.com/token"
-scopes = ["https://mail.google.com/"]
+message.send.backend.type = "smtp"
+message.send.backend.host = "smtp.gmail.com"
+message.send.backend.port = 587
+message.send.backend.encryption.type = "start-tls"
+message.send.backend.login = "redacted@example.com"
 
-[accounts.Gmail.message-writer]
-type = "smtp"
-host = "smtp.gmail.com"
-port = 587
-
-[accounts.Gmail.message-writer.encryption]
-type = "start-tls"
-
-[accounts.Gmail.message-writer.auth]
-type = "oauth2"
-client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
-client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
-refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
-token-url = "https://oauth2.googleapis.com/token"
-scopes = ["https://mail.google.com/"]
+message.send.backend.auth.type = "oauth2"
+message.send.backend.auth.method = "xoauth2"
+message.send.backend.auth.client-id = "${GOOGLE_CALENDAR_CLIENT_ID}"
+message.send.backend.auth.client-secret.raw = "${GOOGLE_CALENDAR_CLIENT_SECRET}"
+message.send.backend.auth.auth-url = "https://accounts.google.com/o/oauth2/v2/auth"
+message.send.backend.auth.token-url = "https://oauth2.googleapis.com/token"
+message.send.backend.auth.access-token.raw = ""
+message.send.backend.auth.refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
+message.send.backend.auth.pkce = false
+message.send.backend.auth.scopes = ["https://mail.google.com/"]
 HIMALAYA_EOF
   chown -R node:node /home/node/.config/himalaya 2>/dev/null || true
 fi
