@@ -136,6 +136,8 @@ backend.auth.refresh-token.raw = "${GOOGLE_GMAIL_REFRESH_TOKEN}"
 backend.auth.pkce = false
 backend.auth.scopes = ["https://mail.google.com/"]
 
+folder.aliases.sent = "[Gmail]/送信済みメール"
+
 message.send.backend.type = "smtp"
 message.send.backend.host = "smtp.gmail.com"
 message.send.backend.port = 587
