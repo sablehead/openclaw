@@ -149,9 +149,10 @@ LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm-sli
 
 # ── himalaya OAuth2 builder ─────────────────────────────────────
 # Builds himalaya from source with the oauth2 cargo feature, which is not
-# included in the official release binaries. Runs as an independent stage
-# so BuildKit can build it in parallel with other stages.
+# included in the official release binaries. Depends on runtime-assets so
+# BuildKit serialises this after the JS build (both are memory-heavy).
 FROM rust:1-slim-bookworm AS himalaya-builder
+COPY --from=runtime-assets /dev/null /dev/null
 ARG OPENCLAW_INSTALL_SKILL_DEPS=""
 RUN --mount=type=cache,id=himalaya-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
     --mount=type=cache,id=himalaya-cargo-git,target=/usr/local/cargo/git,sharing=locked \
