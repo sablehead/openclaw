@@ -112,7 +112,13 @@ fs.writeFileSync(wsDir + '/google-calendar.json', JSON.stringify({
 fi
 
 # Write himalaya config for Gmail OAuth2 if credentials are provided.
-if [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ]; then
+# If a manually curated config exists on the persistent volume, use that
+# instead of generating one — avoids needing a full redeploy for config tweaks.
+if [ -f /data/himalaya-config.toml ]; then
+  mkdir -p /home/node/.config/himalaya
+  cp /data/himalaya-config.toml /home/node/.config/himalaya/config.toml
+  chown -R node:node /home/node/.config/himalaya 2>/dev/null || true
+elif [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ]; then
   mkdir -p /home/node/.config/himalaya
   cat > /home/node/.config/himalaya/config.toml << HIMALAYA_EOF
 [accounts.Gmail]
