@@ -159,23 +159,10 @@ ARG OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST
 LABEL org.opencontainers.image.base.name="docker.io/library/node:24-bookworm-slim" \
   org.opencontainers.image.base.digest="${OPENCLAW_NODE_BOOKWORM_SLIM_DIGEST}"
 
-# ── himalaya OAuth2 builder ─────────────────────────────────────
-# Builds himalaya from source with the oauth2 cargo feature, which is not
-# included in the official release binaries. Depends on runtime-assets so
-# BuildKit serialises this after the JS build (both are memory-heavy).
-FROM rust:1-slim-bookworm AS himalaya-builder
-COPY --from=runtime-assets /dev/null /dev/null
-ARG OPENCLAW_INSTALL_SKILL_DEPS=""
-RUN --mount=type=cache,id=himalaya-cargo-registry,target=/usr/local/cargo/registry,sharing=locked \
-    --mount=type=cache,id=himalaya-cargo-git,target=/usr/local/cargo/git,sharing=locked \
-    set -eux; mkdir -p /out; \
-    if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
-    apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-      pkg-config libssl-dev && \
-    cargo install himalaya --locked --features oauth2 && \
-    strip /usr/local/cargo/bin/himalaya && \
-    cp /usr/local/cargo/bin/himalaya /out/
+# ── himalaya OAuth2 pre-built binary ────────────────────────────
+# Pre-built on GitHub Actions with --features oauth2 and pushed to GHCR.
+# Rebuild via: gh workflow run build-himalaya.yml --repo sablehead/openclaw
+FROM ghcr.io/sablehead/himalaya-oauth2:latest AS himalaya-binary
 
 # ── Stage 3: Runtime ────────────────────────────────────────────
 FROM base-runtime
@@ -407,14 +394,8 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
       echo "WARNING: sag URL not found, skipping"; \
     fi
 
-# Layer 5: himalaya email CLI (OAuth2-enabled, built from source)
-# The official release binaries lack the oauth2 cargo feature.
-# The himalaya-builder stage compiles it with --features oauth2.
-RUN --mount=from=himalaya-builder,source=/out,target=/tmp/himalaya-out \
-    if [ -f /tmp/himalaya-out/himalaya ]; then \
-      cp /tmp/himalaya-out/himalaya /usr/local/bin/himalaya && \
-      chmod +x /usr/local/bin/himalaya; \
-    fi
+# Layer 5: himalaya email CLI (OAuth2-enabled, pre-built from GHCR)
+COPY --from=himalaya-binary /himalaya /usr/local/bin/himalaya
 
 # Layer 6: pip packages (~100MB)
 RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
