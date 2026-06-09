@@ -1,0 +1,56 @@
+name: Build himalaya OAuth2
+
+on:
+  workflow_dispatch:
+    inputs:
+      himalaya_version:
+        description: "himalaya version (cargo install tag, blank = latest)"
+        required: false
+        default: ""
+
+permissions:
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write Dockerfile
+        run: |
+          cat > /tmp/Dockerfile.himalaya <<'DOCKERFILE'
+          FROM rust:1-slim-bookworm AS builder
+          ARG HIMALAYA_VERSION=""
+          RUN apt-get update && \
+              DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                pkg-config libssl-dev && \
+              rm -rf /var/lib/apt/lists/*
+          RUN if [ -n "$HIMALAYA_VERSION" ]; then \
+                cargo install himalaya --locked --features oauth2 --version "$HIMALAYA_VERSION"; \
+              else \
+                cargo install himalaya --locked --features oauth2; \
+              fi && \
+              strip /usr/local/cargo/bin/himalaya
+
+          FROM debian:bookworm-slim
+          COPY --from=builder /usr/local/cargo/bin/himalaya /himalaya
+          DOCKERFILE
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/himalaya-oauth2:latest
+          file: /tmp/Dockerfile.himalaya
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
