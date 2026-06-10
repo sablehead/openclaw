@@ -127,18 +127,18 @@ if [ -f /data/himalaya-config.toml ]; then
   mkdir -p /home/node/.config/himalaya
   cp /data/himalaya-config.toml /home/node/.config/himalaya/config.toml
   chown -R node:node /home/node/.config/himalaya 2>/dev/null || true
-elif [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ]; then
+elif [ -n "$GOOGLE_GMAIL_REFRESH_TOKEN" ] && [ -n "$HIMALAYA_EMAIL" ]; then
   mkdir -p /home/node/.config/himalaya
   cat > /home/node/.config/himalaya/config.toml << HIMALAYA_EOF
 [accounts.Gmail]
-email = "redacted@example.com"
-display-name = "User"
+email = "${HIMALAYA_EMAIL}"
+display-name = "${HIMALAYA_DISPLAY_NAME:-User}"
 
 backend.type = "imap"
 backend.host = "imap.gmail.com"
 backend.port = 993
 backend.encryption.type = "tls"
-backend.login = "redacted@example.com"
+backend.login = "${HIMALAYA_EMAIL}"
 
 backend.auth.type = "oauth2"
 backend.auth.method = "xoauth2"
@@ -157,7 +157,7 @@ message.send.backend.type = "smtp"
 message.send.backend.host = "smtp.gmail.com"
 message.send.backend.port = 587
 message.send.backend.encryption.type = "start-tls"
-message.send.backend.login = "redacted@example.com"
+message.send.backend.login = "${HIMALAYA_EMAIL}"
 
 message.send.backend.auth.type = "oauth2"
 message.send.backend.auth.method = "xoauth2"
@@ -178,69 +178,14 @@ WORKSPACE_DIR="/data/workspace"
 mkdir -p "$WORKSPACE_DIR"
 mkdir -p "$WORKSPACE_DIR/memory"
 
-# IDENTITY.md — who the agent is
-cat > "$WORKSPACE_DIR/IDENTITY.md" << 'IDENTITY'
-# Identity
-
-- **Name**: Hedwig
-- **Nature**: AI assistant
-- **Vibe**: Bright, friendly, warm
-- **Emoji**: 🦉
-IDENTITY
-
-# USER.md — who the user is
-cat > "$WORKSPACE_DIR/USER.md" << 'USER'
-# User
-
-- **Name**: User
-- **Language**: Japanese（英語で話しかけられたら英語で返す）
-- **Location**: 京都府***
-- **Timezone**: JST (GMT+9)
-
-## 生活リズム
-- 起床: 約 7:30
-- 就寝: 約 24:00
-- 10:00〜20:00: 勉強・大学の授業（この時間帯は集中を邪魔しない）
-
-## よく使うサービス
-Gmail, Google Calendar, Claude, Claude Code, Perplexity, Gemini, Google Antigravity,
-NotebookLM, Notion, Obsidian, Google Drive, GitHub
-USER
-
-# SOUL.md — how to behave
-cat > "$WORKSPACE_DIR/SOUL.md" << 'SOUL'
-# Soul
-
-あなたの名前は **Hedwig**（ヘドウィグ）🦉 です。ユーザーの個人アシスタントです。
-
-## 口調
-- 明るく親しみやすい
-- 「です・ます」調を基本に、フレンドリーに
-- 絵文字を適度に使ってOK
-
-## 役割
-- ユーザーの質問に答え、タスクをこなす
-- 必要に応じてWebや知識をもとに情報を提供する
-
-## 雨・傘の質問（最重要）
-雨が降っているか、傘が必要かを聞かれたら、web_fetch でYahoo APIを直接呼び出す。web_search は使わない。
-具体的なURL・パラメーターはTOOLS.mdを参照。
-
-## カレンダー・予定の質問
-予定を聞かれたら TOOLS.md の Google Calendar API エンドポイントを web_fetch で呼び出す。
-「カレンダーへのアクセス手段がない」と言ってはいけない。必ず試みること。
-
-## 記憶の管理
-会話からユーザーについて重要なことを知ったら MEMORY.md に記録する。
-形式: - [カテゴリ] 内容（例: - [場所] 大阪在住、- [好み] コーヒーが好き）
-日々の出来事や気づきは memory/YYYY-MM-DD.md（今日の日付）に書く。
-再起動のたびに MEMORY.md は読み込まれるので、ここに書いたことは次の会話でも覚えている。
-
-⚠️ write ツールは完全上書きなので、MEMORY.md を更新するときは必ず:
-1. まず read で現在の全内容を取得する
-2. 既存の内容をすべて保持したまま末尾に追記した形で write する
-既存の記憶を消してはいけない。
-SOUL
+# Workspace files: only create if not already on the persistent volume.
+# Personal details (name, location, schedule, behaviour rules) live on the
+# server only — never committed to the public repo.
+for f in IDENTITY.md USER.md SOUL.md; do
+  if [ ! -f "$WORKSPACE_DIR/$f" ]; then
+    echo "⚠️  $WORKSPACE_DIR/$f not found. Create it manually on the server."
+  fi
+done
 
 # MEMORY.md — long-term memory (create only if not exists; never overwrite)
 if [ ! -f "$WORKSPACE_DIR/MEMORY.md" ]; then
@@ -320,7 +265,7 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 
 リクエストボディ（JSON）:
 {
-  "textQuery": "検索クエリ（例: *** カフェ）",
+  "textQuery": "検索クエリ（例: 京都駅 カフェ）",
   "languageCode": "ja",
   "maxResultCount": 5
 }
