@@ -281,12 +281,13 @@ https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=js
 
 ## Google Calendar API
 
-予定を確認するには以下のエンドポイントをweb_fetchで呼び出す（GETのみ、認証不要）:
+予定を確認するには以下のエンドポイントをweb_fetchで呼び出す（GETのみ）:
 
 エンドポイント: https://hedwig-cal.fly.dev/events
-パラメーター: date=YYYY-MM-DD（省略すると今日のJST日付）
+必須パラメーター: token=${HEDWIG_CAL_TOKEN}
+任意パラメーター: date=YYYY-MM-DD（省略すると今日のJST日付）
 
-例: https://hedwig-cal.fly.dev/events?date=2026-04-25
+例: https://hedwig-cal.fly.dev/events?date=2026-04-25&token=${HEDWIG_CAL_TOKEN}
 
 レスポンス（JSON）:
 - count: イベント数（0なら予定なし）

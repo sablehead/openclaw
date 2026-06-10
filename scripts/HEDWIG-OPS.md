@@ -145,6 +145,19 @@ config を変更したい場合は SSH で直接 `/data/himalaya-config.toml` �
 - `method = "xoauth2"`, `pkce = false`, `auth-url` が必要
 - Gmail 送信済み: `folder.aliases.sent = "[Gmail]/送信済みメール"`
 
+## hedwig-cal（カレンダープロキシ）
+
+- ソース: ローカル `~/hedwig-cal/`（server.mjs + Dockerfile + fly.toml）。
+  Fly 上にしかなかったものをサルベージ済み。**private リポジトリに入れること**。
+- `/events` は `token=` クエリまたは `Authorization: Bearer` 必須（`CAL_PROXY_TOKEN`）。
+  Hedwig 側は `HEDWIG_CAL_TOKEN` secret 経由で TOOLS.md に埋め込まれる（同じ値）。
+- 上流エラーの詳細はレスポンスに出さない。調査は `fly logs --app hedwig-cal`。
+- デプロイ: `cd ~/hedwig-cal && fly deploy --app hedwig-cal`（小さいので Depot で問題なく通る）
+- カレンダーのリフレッシュトークンが `invalid_grant` になったら再発行:
+  `node scripts/get-google-calendar-token.mjs <client_id> <client_secret>` →
+  表示されたトークンを `fly secrets set GOOGLE_REFRESH_TOKEN=... --app hedwig-cal` と
+  `fly secrets set --stage GOOGLE_CALENDAR_REFRESH_TOKEN=... --app sableshedwig` に反映。
+
 ## Git リモート
 
 - `origin`: openclaw/openclaw（read-only）
