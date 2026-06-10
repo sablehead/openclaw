@@ -19,16 +19,16 @@ Hedwig is an OpenClaw gateway instance — essentially a hosted personal AI with
 | File                       | Purpose                                                                                          |
 | -------------------------- | ------------------------------------------------------------------------------------------------ |
 | `fly.toml`                 | Fly.io app config (app=sableshedwig, region=nrt, performance-1x:2GB)                             |
-| `scripts/fly-root-init.sh` | Root wrapper — `chown -R node:node /data` then `exec su node` to `fly-start.sh`                 |
-| `scripts/fly-start.sh`     | Startup script — merges openclaw.json config, writes workspace files, launches gateway            |
+| `scripts/fly-root-init.sh` | Root wrapper — `chown -R node:node /data` then `exec su node` to `fly-start.sh`                  |
+| `scripts/fly-start.sh`     | Startup script — merges openclaw.json config, writes workspace files, launches gateway           |
 | `Dockerfile`               | Container image — `OPENCLAW_INSTALL_SKILL_DEPS` section, `USER node` commented out for root init |
 | `HEDWIG.md`                | This file                                                                                        |
 
 ## Companion services
 
-| App          | URL                          | Purpose                                                                                                                                     |
-| ------------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `hedwig-cal` | `https://hedwig-cal.fly.dev` | Google Calendar proxy — exposes `GET /events?date=YYYY-MM-DD`; handles OAuth2 internally so Hedwig can access Calendar via `web_fetch`       |
+| App          | URL                          | Purpose                                                                                                                                |
+| ------------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `hedwig-cal` | `https://hedwig-cal.fly.dev` | Google Calendar proxy — exposes `GET /events?date=YYYY-MM-DD`; handles OAuth2 internally so Hedwig can access Calendar via `web_fetch` |
 
 ## Agent roles
 
@@ -56,17 +56,17 @@ Antigravity should evaluate: "Does this change serve sable's goal? Is it safe? I
 
 ### Installed CLIs (via `OPENCLAW_INSTALL_SKILL_DEPS`)
 
-| CLI             | Purpose                                |
-| --------------- | -------------------------------------- |
-| `gh`            | GitHub CLI                             |
-| `gemini-cli`    | Google Gemini CLI                      |
-| `claude`        | Claude Code (`@anthropic-ai/claude-code`) |
-| `clawhub`       | ClawHub CLI                            |
-| `blogwatcher`   | Blog monitoring                        |
-| `gifgrep`       | GIF search                             |
-| `sag`           | ElevenLabs TTS CLI                     |
-| `himalaya`      | Email CLI (⚠ OAuth2 未対応、後述)       |
-| `nano-pdf`      | PDF utility (Python)                   |
+| CLI           | Purpose                                   |
+| ------------- | ----------------------------------------- |
+| `gh`          | GitHub CLI                                |
+| `gemini-cli`  | Google Gemini CLI                         |
+| `claude`      | Claude Code (`@anthropic-ai/claude-code`) |
+| `clawhub`     | ClawHub CLI                               |
+| `blogwatcher` | Blog monitoring                           |
+| `gifgrep`     | GIF search                                |
+| `sag`         | ElevenLabs TTS CLI                        |
+| `himalaya`    | Email CLI (⚠ OAuth2 未対応、後述)         |
+| `nano-pdf`    | PDF utility (Python)                      |
 
 ### Startup flow
 
@@ -94,22 +94,26 @@ cd /Users/sable/openclaw
 - Remote builder recovery: `fly machine restart fly-builder-tender-sky-7394 --app fly-builder-tender-sky-7394`
 - Doctor on server: `su node -s /bin/sh -c "node openclaw.mjs doctor --fix"` (never run as root)
 
-## Open issues
+## Resolved
 
-### himalaya OAuth2 binary problem
+### himalaya OAuth2 email (resolved 2026-06-10)
 
-The official himalaya release binary is built without the `oauth2` cargo feature. The config in `fly-start.sh` writes `type = "oauth2"` but the binary errors with `missing 'oauth2' cargo feature`.
+The official himalaya release binary ships without the `oauth2` cargo feature, so
+`type = "oauth2"` errored with `missing 'oauth2' cargo feature`. Fixed by taking
+**Option 1** — an OAuth2-enabled binary is built via `.github/workflows/build-himalaya.yml`,
+published to GHCR, and copied into the image (no in-image cargo build / OOM).
 
-OAuth2 tokens are ready (`GOOGLE_GMAIL_REFRESH_TOKEN` set, Google OAuth consent screen published, `https://mail.google.com/` scope added to Calendar OAuth client).
+Live-verified: `himalaya v1.2.0 +oauth2`, account `Gmail`, XOAUTH2 with automatic
+access-token refresh; envelope listing succeeds as the `node` user.
 
-Options:
-1. Build an OAuth2-enabled himalaya binary from source
-2. Skip himalaya; build a Gmail proxy like `hedwig-cal.fly.dev`
-3. Use `web_fetch` to call Gmail API directly (add to TOOLS.md)
+### Google Calendar refresh token (resolved 2026-06-10)
+
+Refresh token was re-issued and set on both `sableshedwig` and `hedwig-cal`.
+`hedwig-cal /events` returns valid JSON (no `invalid_grant`). Re-issue procedure if it
+expires again: `node scripts/get-google-calendar-token.mjs <client_id> <client_secret>`.
 
 ## TODO
 
-- [ ] Resolve himalaya email (see above)
 - [ ] voice-call plugin setup
 - [ ] obsidian-cli + Google Drive Vault mount
 
