@@ -6,9 +6,10 @@ CONFIG_FILE="$STATE_DIR/openclaw.json"
 
 mkdir -p "$STATE_DIR"
 
-# Ensure openclaw.json is writable. doctor --fix can reset it to root ownership;
-# chmod 666 lets the node user write it even when root owns it.
-chmod 666 "$STATE_DIR/openclaw.json" 2>/dev/null || true
+# fly-root-init.sh chowns $STATE_DIR to node:node before this script runs, so
+# node always owns the file. Keep it 600: it contains the gateway auth token
+# and plugin API keys, which must not be readable by other container users.
+chmod 600 "$STATE_DIR/openclaw.json" 2>/dev/null || true
 
 # Ensure required gateway.controlUi flags are always present.
 # The dashboard may overwrite openclaw.json without these keys; re-apply on every start.
@@ -83,17 +84,22 @@ if [ -n "$GOOGLE_API_KEY" ]; then
 const fs = require('fs');
 const dir = process.env.OPENCLAW_STATE_DIR_VAL + '/agents/main/agent';
 fs.mkdirSync(dir, { recursive: true });
-fs.writeFileSync(dir + '/auth-profiles.json', JSON.stringify({
-  version: 1,
-  profiles: {
-    'google:default': { type: 'api_key', provider: 'google', key: process.env.OPENCLAW_GOOGLE_KEY }
-  }
-}, null, 2));
+const file = dir + '/auth-profiles.json';
+// Merge: profiles for other providers may have been added at runtime
+// (e.g. via openclaw configure); overwriting would silently delete them.
+let store = { version: 1, profiles: {} };
+if (fs.existsSync(file)) {
+  try { store = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (_) {}
+}
+store.profiles = store.profiles || {};
+store.profiles['google:default'] = { type: 'api_key', provider: 'google', key: process.env.OPENCLAW_GOOGLE_KEY };
+fs.writeFileSync(file, JSON.stringify(store, null, 2));
 " || true
 fi
 
 # Write Google Calendar OAuth credentials to workspace if provided via Fly.io secrets.
 if [ -n "$GOOGLE_CALENDAR_REFRESH_TOKEN" ]; then
+  OPENCLAW_STATE_DIR_VAL="$STATE_DIR" \
   GC_CLIENT_ID="${GOOGLE_CALENDAR_CLIENT_ID}" \
   GC_CLIENT_SECRET="${GOOGLE_CALENDAR_CLIENT_SECRET}" \
   GC_REFRESH_TOKEN="${GOOGLE_CALENDAR_REFRESH_TOKEN}" \

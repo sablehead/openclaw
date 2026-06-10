@@ -381,18 +381,13 @@ RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     go install github.com/steipete/gifgrep/cmd/gifgrep@latest
 
 # Layer 4b: sag (ElevenLabs TTS CLI, linux_amd64)
+# Pinned release URL: the previous api.github.com "latest" lookup hits anonymous
+# rate limits on shared CI runner IPs and silently skipped the install.
+ARG SAG_VERSION=0.3.0
 RUN if [ -z "$OPENCLAW_INSTALL_SKILL_DEPS" ]; then exit 0; fi; \
     set -eux; \
-    SAG_URL="$(curl -fsSL https://api.github.com/repos/steipete/sag/releases/latest \
-      | grep '"browser_download_url"' \
-      | grep 'linux_amd64.tar.gz"' \
-      | head -1 \
-      | sed 's/.*"browser_download_url": "\(.*\)".*/\1/')" && \
-    if [ -n "$SAG_URL" ]; then \
-      curl -fsSL "$SAG_URL" | tar -xz -C /usr/local/bin sag; \
-    else \
-      echo "WARNING: sag URL not found, skipping"; \
-    fi
+    curl -fsSL "https://github.com/steipete/sag/releases/download/v${SAG_VERSION}/sag_${SAG_VERSION}_linux_amd64.tar.gz" \
+      | tar -xz -C /usr/local/bin sag
 
 # Layer 5: himalaya email CLI (OAuth2-enabled, pre-built from GHCR)
 COPY --from=himalaya-binary /himalaya /usr/local/bin/himalaya
