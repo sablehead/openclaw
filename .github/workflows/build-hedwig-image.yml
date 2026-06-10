@@ -1,0 +1,82 @@
+name: Build Hedwig image
+
+# Builds the full Hedwig app image on GitHub runners and pushes it straight to
+# the Fly.io registry. This bypasses both the flaky Fly remote builder
+# (registry push disconnects) and local Docker Desktop (OOM). Deploy with:
+#
+#   fly deploy --app sableshedwig --image registry.fly.io/sableshedwig:hedwig-latest
+#
+# Requires repo secret FLY_API_TOKEN (a Fly deploy token for sableshedwig).
+
+on:
+  push:
+    branches: [hedwig]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to sableshedwig after the build"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-hedwig-image
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # The image is multi-GB; default runners have ~14GB free on /.
+      - name: Free runner disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup
+          df -h /
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up flyctl
+        uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Log in to Fly registry
+        run: flyctl auth docker
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: |
+            registry.fly.io/sableshedwig:hedwig-${{ github.sha }}
+            registry.fly.io/sableshedwig:hedwig-latest
+          build-args: |
+            OPENCLAW_DOCKER_APT_PACKAGES=tmux jq ffmpeg yt-dlp
+            OPENCLAW_INSTALL_SKILL_DEPS=1
+          cache-from: type=gha
+          cache-to: type=gha,mode=min
+
+      - name: Deploy
+        if: github.event_name == 'workflow_dispatch' && inputs.deploy
+        run: flyctl deploy --app sableshedwig --image "registry.fly.io/sableshedwig:hedwig-${{ github.sha }}"
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+      - name: Summary
+        run: |
+          {
+            echo "Image pushed: \`registry.fly.io/sableshedwig:hedwig-${{ github.sha }}\`"
+            echo ""
+            echo "Deploy with:"
+            echo '```'
+            echo "fly deploy --app sableshedwig --image registry.fly.io/sableshedwig:hedwig-${{ github.sha }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

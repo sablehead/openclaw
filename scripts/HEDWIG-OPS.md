@@ -4,6 +4,25 @@ Fly.io 東京リージョン (nrt) 上の OpenClaw ゲートウェイ `sableshed
 
 ## デプロイ方法（何が動いて何が動かないか）
 
+### ✅ 推奨: GitHub Actions ビルド + fly deploy --image
+
+`hedwig` ブランチへ push すると `.github/workflows/build-hedwig-image.yml` が
+GitHub ランナー上でフルイメージをビルドし、Fly レジストリへ直接 push する。
+Fly リモートビルダー（push 切断問題）もローカル Docker（OOM）も使わない。
+
+```sh
+git push fork hedwig                  # → CI がイメージをビルド & push（~15分）
+gh run watch --repo sablehead/openclaw  # ビルド完了を待つ
+
+# デプロイ（ビルドはせず、push 済みイメージを使うだけなので軽い）
+fly deploy --app sableshedwig --image registry.fly.io/sableshedwig:hedwig-latest
+```
+
+- SHA 付きタグ `hedwig-<full-sha>` も push されるので、ロールバックはその SHA を指定する
+- 必要シークレット: fork リポジトリの `FLY_API_TOKEN`（`fly tokens create deploy -a sableshedwig` で発行）
+- 手動実行: `gh workflow run build-hedwig-image.yml --repo sablehead/openclaw --ref hedwig`
+  （`deploy=true` 入力で CI からそのままデプロイも可能）
+
 ### ✅ 動く: fly ssh sftp + machine restart
 
 fly-start.sh やワークスペースファイルだけの変更はこれで十分。数秒で完了。
@@ -142,8 +161,23 @@ config を変更したい場合は SSH で直接 `/data/himalaya-config.toml` �
 - `YAHOO_APP_ID`
 - `GOOGLE_PLACES_API_KEY`
 
+## fly-start.sh の上書き（/data 優先）
+
+`fly-root-init.sh` は `/data/fly-start.sh` が存在すればイメージ内の
+`/app/fly-start.sh` より優先して実行する。sftp + restart での緊急修正が
+再起動後も生き残るための仕組み。
+
+⚠️ **イメージデプロイ後は `/data/fly-start.sh` を削除すること。**
+残しておくと、新しいイメージに入った fly-start.sh が永遠に使われない。
+
+```sh
+fly ssh console -C "rm /data/fly-start.sh"
+fly machine restart 1854407b453318
+```
+
 ## 今後 fly deploy が必要になったら
 
-1. まず `fly deploy --remote-only --depot=false` を試す（レジストリ問題が解消しているか確認）
-2. ダメなら GHCR にイメージをビルド → `fly deploy --image ghcr.io/...` を検討
-3. fly-start.sh だけなら sftp + restart が最速
+1. 推奨: `git push fork hedwig` → CI ビルド → `fly deploy --image`（上記参照）
+2. fly-start.sh だけなら sftp で `/data/fly-start.sh` に置いて restart が最速
+   （イメージ更新時に消し忘れないこと）
+3. `fly deploy --remote-only` は push 切断問題が直るまで使わない
