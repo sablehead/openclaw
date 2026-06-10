@@ -65,7 +65,7 @@ Antigravity should evaluate: "Does this change serve sable's goal? Is it safe? I
 | `blogwatcher` | Blog monitoring                           |
 | `gifgrep`     | GIF search                                |
 | `sag`         | ElevenLabs TTS CLI                        |
-| `himalaya`    | Email CLI (⚠ OAuth2 未対応、後述)         |
+| `himalaya`    | Email CLI (OAuth2 対応ビルド、稼働中)     |
 | `nano-pdf`    | PDF utility (Python)                      |
 
 ### Startup flow
