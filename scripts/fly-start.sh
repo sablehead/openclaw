@@ -22,7 +22,10 @@ if (fs.existsSync(path)) {
 }
 cfg.gateway = cfg.gateway || {};
 cfg.gateway.controlUi = cfg.gateway.controlUi || {};
-cfg.gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback = true;
+// Explicit origin allowlist instead of the dangerous Host-header fallback:
+// the public URL is fixed, so there is no reason to trust arbitrary Hosts.
+cfg.gateway.controlUi.allowedOrigins = ['https://sableshedwig.fly.dev'];
+delete cfg.gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback;
 cfg.gateway.controlUi.dangerouslyDisableDeviceAuth = true;
 cfg.gateway.trustedProxies = ['172.16.0.0/12'];
 cfg.agents = cfg.agents || {};
