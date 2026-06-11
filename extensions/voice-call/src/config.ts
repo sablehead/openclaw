@@ -89,6 +89,8 @@ const VoiceCallNumberRouteConfigSchema = z
     responseSystemPrompt: z.string().optional(),
     /** Timeout for response generation in ms for this number. */
     responseTimeoutMs: z.number().int().positive().optional(),
+    /** BCP-47 locale override for ASR/playback language for this number. */
+    locale: z.string().optional(),
   })
   .strict();
 export type VoiceCallNumberRouteConfig = z.infer<typeof VoiceCallNumberRouteConfigSchema>;
@@ -476,6 +478,13 @@ export const VoiceCallConfigSchema = z
 
     /** Session memory scope for voice conversations. */
     sessionScope: VoiceCallSessionScopeSchema.default("per-phone"),
+
+    /**
+     * BCP-47 locale (e.g. "ja-JP") for native carrier speech recognition and
+     * `<Say>`/playback language. Drives Twilio `<Gather language>` ASR and the
+     * `<Say language>` attribute; when unset, providers default to "en-US".
+     */
+    locale: z.string().optional(),
 
     /** Public webhook URL override (if set, bypasses tunnel auto-detection) */
     publicUrl: z.string().url().optional(),

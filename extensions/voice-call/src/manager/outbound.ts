@@ -65,6 +65,20 @@ type EndCallContext = Pick<
 
 type ConnectedCallContext = Pick<CallManagerContext, "activeCalls" | "provider">;
 
+function resolveNumberRouteKey(call: CallRecord): string | undefined {
+  return typeof call.metadata?.numberRouteKey === "string" ? call.metadata.numberRouteKey : call.to;
+}
+
+// Per-call ASR/playback locale: per-number override wins, else the global
+// voice-call locale. Threaded into provider startListening/playTts so native
+// carrier speech recognition (e.g. Twilio <Gather language>) matches the caller.
+function resolveCallLocale(
+  config: CallManagerContext["config"],
+  call: CallRecord,
+): string | undefined {
+  return resolveVoiceCallEffectiveConfig(config, resolveNumberRouteKey(call)).config.locale;
+}
+
 type ConnectedCallLookup =
   | { kind: "error"; error: string }
   | { kind: "ended"; call: CallRecord }
@@ -270,16 +284,16 @@ export async function speak(
     transitionState(call, "speaking");
     persistCallRecord(ctx.storePath, call);
 
-    const numberRouteKey =
-      typeof call.metadata?.numberRouteKey === "string" ? call.metadata.numberRouteKey : call.to;
-    const voice = resolvePreferredTtsVoice(
-      resolveVoiceCallEffectiveConfig(ctx.config, numberRouteKey).config,
-    );
+    const effectiveConfig = resolveVoiceCallEffectiveConfig(
+      ctx.config,
+      resolveNumberRouteKey(call),
+    ).config;
     await provider.playTts({
       callId,
       providerCallId,
       text,
-      voice,
+      voice: resolvePreferredTtsVoice(effectiveConfig),
+      locale: effectiveConfig.locale,
     });
 
     addTranscriptEntry(call, "bot", text);
@@ -403,6 +417,7 @@ export async function speakInitialMessage(
       await ctx.provider.startListening({
         callId: call.callId,
         providerCallId,
+        language: resolveCallLocale(ctx.config, call),
       });
     }
   } finally {
@@ -436,7 +451,12 @@ export async function continueCall(
     persistCallRecord(ctx.storePath, call);
 
     const listenStartedAt = Date.now();
-    await provider.startListening({ callId, providerCallId, turnToken });
+    await provider.startListening({
+      callId,
+      providerCallId,
+      turnToken,
+      language: resolveCallLocale(ctx.config, call),
+    });
 
     const transcript = await waitForFinalTranscript(ctx, callId, turnToken);
     const transcriptReceivedAt = Date.now();

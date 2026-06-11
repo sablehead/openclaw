@@ -361,6 +361,30 @@ describe("voice-call outbound helpers", () => {
     });
   });
 
+  it("threads the configured locale into playTts", async () => {
+    const call = { callId: "call-1", providerCallId: "provider-1", state: "active" };
+    const playTts = vi.fn(async () => {});
+    const ctx = {
+      activeCalls: new Map([["call-1", call]]),
+      providerCallIdMap: new Map(),
+      provider: { name: "twilio", playTts },
+      config: {
+        locale: "ja-JP",
+        tts: { provider: "openai", providers: { openai: { voice: "Polly.Mizuki" } } },
+      },
+      storePath: "/tmp/voice-call.json",
+    };
+
+    await expect(speak(ctx as never, "call-1", "こんにちは")).resolves.toEqual({ success: true });
+    expect(playTts).toHaveBeenCalledWith({
+      callId: "call-1",
+      providerCallId: "provider-1",
+      text: "こんにちは",
+      voice: "Polly.Mizuki",
+      locale: "ja-JP",
+    });
+  });
+
   it("caps notify-mode auto-hangup delay before scheduling", async () => {
     const call = {
       callId: "call-1",

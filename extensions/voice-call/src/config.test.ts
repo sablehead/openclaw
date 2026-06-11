@@ -316,6 +316,20 @@ describe("resolveVoiceCallConfig session routing", () => {
     ).toBe("voice:call:call-123");
   });
 
+  it("defaults locale to undefined and applies per-number locale overrides", () => {
+    const config = resolveVoiceCallConfig({
+      enabled: true,
+      provider: "mock",
+      locale: "ja-JP",
+      numbers: { "+15550000000": { locale: "en-US" } },
+    });
+
+    expect(config.locale).toBe("ja-JP");
+    // Routed number overrides the global locale; unrouted falls back to global.
+    expect(resolveVoiceCallEffectiveConfig(config, "+15550000000").config.locale).toBe("en-US");
+    expect(resolveVoiceCallEffectiveConfig(config, "+15559999999").config.locale).toBe("ja-JP");
+  });
+
   it("preserves explicit voice session keys", () => {
     const config = resolveVoiceCallConfig({
       enabled: true,

@@ -39,6 +39,7 @@ Put under `plugins.entries.voice-call.config`:
   fromNumber: "+15550001234",
   toNumber: "+15550005678",
   sessionScope: "per-phone", // or "per-call"
+  locale: "ja-JP", // BCP-47; drives native ASR + spoken playback language
 
   twilio: {
     accountSid: "ACxxxxxxxx",
@@ -104,6 +105,7 @@ Notes:
 - advanced webhook, streaming, and tunnel notes: `https://docs.openclaw.ai/plugins/voice-call`
 - `responseModel` is optional. When unset, voice responses use the runtime default model.
 - `sessionScope` defaults to `per-phone`, preserving caller memory across calls. Use `per-call` for reception, booking, IVR, and bridge flows where each carrier call should start fresh.
+- `locale` is a BCP-47 tag (e.g. `ja-JP`). It sets the carrier speech-recognition language (Twilio `<Gather language>`) and the spoken `<Say language>`; defaults to `en-US` when unset. Can be overridden per dialed number under `numbers`. For non-English `<Say>` output, also pick a matching carrier voice via `tts` (e.g. a Japanese Polly voice for Twilio).
 - `realtime.consultThinkingLevel` is optional. When set, it overrides the thinking level used by the model behind realtime `openclaw_agent_consult` calls.
 - `realtime.consultFastMode` is optional. When set, it toggles fast mode for realtime `openclaw_agent_consult` calls.
 

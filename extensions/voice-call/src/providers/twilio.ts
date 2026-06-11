@@ -646,7 +646,7 @@ export class TwilioProvider implements VoiceCallProvider {
     const twiml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Say voice="${pollyVoice}" language="${input.locale || "en-US"}">${escapeXml(input.text)}</Say>
-  <Gather input="speech" speechTimeout="auto" action="${escapeXml(webhookUrl)}" method="POST">
+  <Gather input="speech" speechTimeout="auto" language="${input.locale || "en-US"}" action="${escapeXml(webhookUrl)}" method="POST">
     <Say>.</Say>
   </Gather>
 </Response>`;

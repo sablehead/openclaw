@@ -441,6 +441,44 @@ describe("TwilioProvider", () => {
     expect(params.Twiml).toContain("<Say");
   });
 
+  it("threads the call locale into the TwiML <Say> and post-Say <Gather> ASR language", async () => {
+    const { provider, apiRequest } = configureTelephonyTwiMlFallback({
+      providerCallId: "CA-locale",
+    });
+
+    await expect(
+      provider.playTts({
+        callId: "call-locale",
+        providerCallId: "CA-locale",
+        text: "こんにちは",
+        locale: "ja-JP",
+      }),
+    ).resolves.toBeUndefined();
+    const [, params] = requireApiRequestCall(apiRequest) as [string, { Twiml?: string }];
+    expect(params.Twiml).toContain('<Say voice="');
+    expect(params.Twiml).toContain('language="ja-JP"');
+    expect(params.Twiml).toContain('<Gather input="speech"');
+    // Both the spoken line and the listening Gather must carry the locale.
+    expect(params.Twiml?.match(/language="ja-JP"/g)).toHaveLength(2);
+  });
+
+  it("threads the listen language into the startListening <Gather>", async () => {
+    const { provider, apiRequest } = configureTelephonyTwiMlFallback({
+      providerCallId: "CA-listen-locale",
+    });
+
+    await expect(
+      provider.startListening({
+        callId: "call-listen-locale",
+        providerCallId: "CA-listen-locale",
+        language: "ja-JP",
+      }),
+    ).resolves.toBeUndefined();
+    const [, params] = requireApiRequestCall(apiRequest) as [string, { Twiml?: string }];
+    expect(params.Twiml).toContain('<Gather input="speech"');
+    expect(params.Twiml).toContain('language="ja-JP"');
+  });
+
   it("retries TwiML fallback when Twilio briefly rejects a live-call update as not in progress", async () => {
     vi.useFakeTimers();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
