@@ -53,6 +53,15 @@ cfg.tools.allow = cfg.tools.allow || [];
 if (!cfg.tools.allow.includes('web_fetch')) cfg.tools.allow.push('web_fetch');
 if (!cfg.tools.allow.includes('write')) cfg.tools.allow.push('write');
 if (!cfg.tools.allow.includes('web_search')) cfg.tools.allow.push('web_search');
+// Telegram is the proactive-push channel (notifications fire; the WhatsApp
+// self-chat does not). Token comes from the TELEGRAM_BOT_TOKEN secret; owner
+// allowFrom / pairing stays in /data so personal IDs never land in this public repo.
+cfg.channels = cfg.channels || {};
+cfg.channels.telegram = cfg.channels.telegram || {};
+cfg.channels.telegram.enabled = true;
+cfg.channels.telegram.dmPolicy = cfg.channels.telegram.dmPolicy || 'pairing';
+cfg.channels.telegram.actions = cfg.channels.telegram.actions || {};
+cfg.channels.telegram.actions.sendMessage = true;
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 
