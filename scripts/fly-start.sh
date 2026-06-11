@@ -91,6 +91,69 @@ fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 fi
 
+# Enable the voice-call plugin (Twilio) when call credentials are provided.
+# Inert until TWILIO_* secrets are set, mirroring the other secret-gated blocks.
+# Twilio reaches the gateway only over the public 443->3000 path, which serves
+# the Control UI, not the voice-call webhook. The plugin runs its own listener
+# (serve.port=3334), exposed publicly on 8443 by the second fly.toml service.
+# Bind 0.0.0.0 so the Fly proxy can reach 3334 (the schema default 127.0.0.1
+# is loopback-only and unreachable from the proxy).
+if [ -n "$TWILIO_ACCOUNT_SID" ] && [ -n "$TWILIO_AUTH_TOKEN" ] && [ -n "$TWILIO_FROM_NUMBER" ]; then
+  OPENCLAW_CONFIG_FILE="$CONFIG_FILE" \
+  VC_SID="$TWILIO_ACCOUNT_SID" \
+  VC_TOKEN="$TWILIO_AUTH_TOKEN" \
+  VC_FROM="$TWILIO_FROM_NUMBER" \
+  VC_TO="${VOICE_CALL_TO_NUMBER}" \
+  VC_ALLOW_FROM="${VOICE_CALL_ALLOW_FROM}" \
+  node -e "
+const fs = require('fs');
+const path = process.env.OPENCLAW_CONFIG_FILE;
+let cfg = {};
+if (fs.existsSync(path)) {
+  try { cfg = JSON.parse(fs.readFileSync(path, 'utf8')); } catch (_) {}
+}
+cfg.plugins = cfg.plugins || {};
+cfg.plugins.entries = cfg.plugins.entries || {};
+cfg.plugins.entries['voice-call'] = cfg.plugins.entries['voice-call'] || {};
+const vc = cfg.plugins.entries['voice-call'];
+vc.enabled = true;
+vc.config = vc.config || {};
+const c = vc.config;
+c.provider = 'twilio';
+c.twilio = c.twilio || {};
+c.twilio.accountSid = process.env.VC_SID;
+c.twilio.authToken = process.env.VC_TOKEN;
+c.fromNumber = process.env.VC_FROM;
+if (process.env.VC_TO) { c.toNumber = process.env.VC_TO; }
+// Plugin webhook listener (separate from the gateway). 0.0.0.0 so the Fly proxy
+// can forward external 8443 -> internal 3334.
+c.serve = { port: 3334, bind: '0.0.0.0', path: '/voice/webhook' };
+// Explicit public URL Twilio uses for signing; the :8443 port variant is handled
+// by voice-call's port-tolerant Twilio signature check.
+c.publicUrl = 'https://sableshedwig.fly.dev:8443/voice/webhook';
+c.outbound = c.outbound || {};
+c.outbound.defaultMode = 'conversation';
+// Japanese: ja-JP drives <Gather> ASR + <Say> language; Polly.Mizuki gives a
+// Japanese spoken voice (no OpenAI key needed — TTS provider is only constructed
+// when streaming is enabled, which it is not here).
+c.locale = 'ja-JP';
+c.tts = c.tts || {};
+c.tts.provider = 'openai';
+c.tts.providers = c.tts.providers || {};
+c.tts.providers.openai = Object.assign({}, c.tts.providers.openai, { voice: 'Polly.Mizuki' });
+// Inbound (call Hedwig) is opt-in via a secret so personal numbers never land in
+// this public repo. Without it, only outbound calls are allowed.
+const allow = (process.env.VC_ALLOW_FROM || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+if (allow.length > 0) {
+  c.inboundPolicy = 'allowlist';
+  c.allowFrom = allow;
+} else {
+  c.inboundPolicy = 'disabled';
+}
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+"
+fi
+
 # Write Google API key to auth-profiles if provided via Fly.io secret.
 # Use || true so a pre-existing root-owned file never blocks gateway startup.
 if [ -n "$GOOGLE_API_KEY" ]; then
