@@ -262,6 +262,25 @@ https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=js
 「今日」「明日」などの質問は今日の日付（JST）を基準にdateパラメーターを指定すること。
 任意の日付を指定でき、過去・未来どちらも取得できる。
 
+## Gmail 未読メール
+
+未読メールを確認するには以下のエンドポイントをweb_fetchで呼び出す（GETのみ）:
+
+エンドポイント: https://hedwig-cal.fly.dev/mail
+必須パラメーター: token=${HEDWIG_CAL_TOKEN}
+任意パラメーター: limit=件数（既定5、最大15）
+
+例: https://hedwig-cal.fly.dev/mail?limit=5&token=${HEDWIG_CAL_TOKEN}
+
+レスポンス（JSON）:
+- count: 未読件数（0なら未読なし）
+- messages[]: 未読メールのリスト
+  - from: 差出人
+  - subject: 件名
+  - date: 受信日時
+
+受信箱(INBOX)の未読のみ。本文は返さず件名・差出人・日時だけ。トークンはカレンダーと同じ。
+
 ## Google Places API (New)
 
 場所の検索（カフェ、レストラン、施設など）にはこのAPIを使う。
