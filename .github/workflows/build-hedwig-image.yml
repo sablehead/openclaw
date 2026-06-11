@@ -64,6 +64,7 @@ jobs:
           build-args: |
             OPENCLAW_DOCKER_APT_PACKAGES=tmux jq ffmpeg yt-dlp
             OPENCLAW_INSTALL_SKILL_DEPS=1
+            OPENCLAW_EXTENSIONS=voice-call
           cache-from: type=gha
           cache-to: type=gha,mode=min
 
