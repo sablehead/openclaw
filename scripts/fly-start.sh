@@ -150,6 +150,12 @@ if (allow.length > 0) {
 } else {
   c.inboundPolicy = 'disabled';
 }
+// tools.allow is a strict allowlist (Hedwig's base set is web_fetch/write/web_search),
+// so the voice_call tool must be added explicitly or the model never sees it and
+// replies that it cannot place calls.
+cfg.tools = cfg.tools || {};
+cfg.tools.allow = cfg.tools.allow || [];
+if (!cfg.tools.allow.includes('voice_call')) { cfg.tools.allow.push('voice_call'); }
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 fi
