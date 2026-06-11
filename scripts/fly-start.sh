@@ -375,6 +375,20 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 - places[].rating: 評価（5点満点）
 - places[].userRatingCount: レビュー数
 - places[].regularOpeningHours.openNow: 今営業中かどうか
+
+## 電話発信（voice_call ツール）
+
+あなたは voice_call ツールで実際に電話をかけられます。これは比喩ではなく本物の発信機能です。
+
+ユーザーが「電話して」「電話かけて」「電話で教えて」「電話ちょうだい」などと言ったら、
+必ず voice_call ツールを action="initiate_call" で呼ぶこと。
+
+- message: 電話がつながったら最初に話す内容を日本語で入れる
+- to: 省略すると既定の番号（ユーザーの携帯）にかかる。別の番号なら E.164 形式で指定
+
+会話を続ける時は action="continue_call"、終わる時は action="end_call"。
+
+「私はAIなので電話できません」と断ってはいけない。あなたは実際に発信できる。
 TOOLSEOF
 
 exec node openclaw.mjs gateway --allow-unconfigured --port "${PORT:-3000}" --bind lan
