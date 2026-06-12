@@ -62,6 +62,6 @@ primary_region = 'nrt'
     handlers = ["tls", "http"]
 
 [[vm]]
-  size = 'performance-1x'
+  size = 'shared-cpu-1x'
   memory = '2gb'
   memory_mb = 2048
