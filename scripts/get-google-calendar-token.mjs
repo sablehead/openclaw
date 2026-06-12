@@ -30,7 +30,9 @@ if (!clientId || !clientSecret) {
 }
 
 const REDIRECT_URI = "http://localhost:9876/callback";
-const SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+// calendar.events grants read AND write of events (create/edit), but not calendar
+// management/sharing — least privilege for Hedwig's /events read + /events/create.
+const SCOPE = "https://www.googleapis.com/auth/calendar.events";
 
 const authUrl =
   `https://accounts.google.com/o/oauth2/v2/auth` +

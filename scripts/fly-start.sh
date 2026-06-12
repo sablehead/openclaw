@@ -326,10 +326,27 @@ https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=js
   - location: 場所（null可）
   - description: 詳細（null可）
   - allDay: 終日イベントかどうか
+  - colorId / color: 予定の色ID(1-11)と色名（予定の性質を表す。null可）
+  - ongoing: 前日から続く多日予定なら true（「継続中」と畳んでよい）
 
 時刻はJST（+09:00）で返ってくる。
 「今日」「明日」などの質問は今日の日付（JST）を基準にdateパラメーターを指定すること。
 任意の日付を指定でき、過去・未来どちらも取得できる。
+
+予定を登録（作成）するには以下をweb_fetchで呼び出す（web_fetchはGET専用なのでGETで作成する）:
+
+エンドポイント: https://hedwig-cal.fly.dev/events/create
+必須パラメーター: token=${HEDWIG_CAL_TOKEN} / title=タイトル / start=開始
+任意パラメーター: end=終了 / colorId=色(1-11) / location=場所 / desc=詳細 / allDay=1（終日）
+
+start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY-MM-DD。end省略時は開始の1時間後。
+登録フォーマット（人もAIも後から性質を扱えるように必ず守る）:
+- 色(colorId)で性質を表す。${HEDWIG_CALENDAR_COLOR_RULE}
+- 場所は location に入れる（タイトルに混ぜない）。相手・内容は title に簡潔に。
+- 時間が不明なら allDay=1 にして「0分予定」を作らない。
+- 補足は desc に「key: value」の短いタグ行で（任意度/締切/費用 など）。
+
+例: https://hedwig-cal.fly.dev/events/create?token=${HEDWIG_CAL_TOKEN}&title=美容院&start=2026-07-01T14:00&colorId=8&location=四条
 
 ## Gmail 未読メール
 
