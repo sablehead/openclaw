@@ -133,6 +133,11 @@ c.serve = { port: 3334, bind: '0.0.0.0', path: '/voice/webhook' };
 c.publicUrl = 'https://sableshedwig.fly.dev:8443/voice/webhook';
 c.outbound = c.outbound || {};
 c.outbound.defaultMode = 'notify';
+// The notify auto-hangup timer starts when TTS playback is *initiated* (Twilio
+// accepts the <Say> TwiML), not when audio finishes, so the 3s schema default
+// cut our ~6s test message off mid-sentence. 20s covers typical 1-2 sentence
+// notifications; Twilio bills per started minute so a longer window is free.
+c.outbound.notifyHangupDelaySec = 20;
 // Japanese: ja-JP drives <Gather> ASR + <Say> language; Polly.Mizuki gives a
 // Japanese spoken voice (no OpenAI key needed — TTS provider is only constructed
 // when streaming is enabled, which it is not here).
