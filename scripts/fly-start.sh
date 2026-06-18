@@ -360,12 +360,15 @@ start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY
 
 レスポンス（JSON）:
 - count: 未読件数（0なら未読なし）
-- messages[]: 未読メールのリスト
+- messages[]: 未読メールのリスト。**score の高い順（重要そうな順）に並んでいる**
   - from: 差出人
   - subject: 件名
   - date: 受信日時
+  - category: Gmailのタブ分類（personal/updates/forums/primary など）
+  - score: 重要度スコア。IMPORTANT/スター/個人宛で加点、更新通知・ニュースレター（配信停止リンク付き）で減点
 
-受信箱(INBOX)の未読のみ。本文は返さず件名・差出人・日時だけ。トークンはカレンダーと同じ。
+サーバ側で広告(Promotions)とSNS(Social)は既に除外済み。本文は返さず件名・差出人・日時だけ。トークンはカレンダーと同じ。
+ブリーフで「気になる未読」を出すときは **score>=1 を優先**して上位2-3件の件名と差出人を伝える。score>=1 が無ければ無理に挙げず「重要な未読はなし（ニュースレター中心）」とまとめてよい。
 
 ## Google Places API (New)
 
