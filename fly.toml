@@ -11,6 +11,7 @@ primary_region = 'nrt'
   [build.args]
     OPENCLAW_DOCKER_APT_PACKAGES = "tmux jq ffmpeg yt-dlp"
     OPENCLAW_INSTALL_SKILL_DEPS = "1"
+    OPENCLAW_EXTENSIONS = "voice-call"
 
 [env]
   NODE_ENV = 'production'

@@ -132,7 +132,7 @@ c.serve = { port: 3334, bind: '0.0.0.0', path: '/voice/webhook' };
 // by voice-call's port-tolerant Twilio signature check.
 c.publicUrl = 'https://sableshedwig.fly.dev:8443/voice/webhook';
 c.outbound = c.outbound || {};
-c.outbound.defaultMode = 'conversation';
+c.outbound.defaultMode = 'notify';
 // Japanese: ja-JP drives <Gather> ASR + <Say> language; Polly.Mizuki gives a
 // Japanese spoken voice (no OpenAI key needed — TTS provider is only constructed
 // when streaming is enabled, which it is not here).
@@ -399,16 +399,16 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 ## 電話発信（voice_call ツール）
 
 あなたは voice_call ツールで実際に電話をかけられます。これは比喩ではなく本物の発信機能です。
+**現在は「通知（notify）専用モード」で運用しているため、メッセージを一度読み上げたら自動で電話が切れます。会話を続けることはできません。**
 
 ユーザーが「電話して」「電話かけて」「電話で教えて」「電話ちょうだい」などと言ったら、
 必ず voice_call ツールを action="initiate_call" で呼ぶこと。
 
-- message: 電話がつながったら最初に話す内容を日本語で入れる
+- message: 電話がつながったら読み上げる内容（通知したいこと）を日本語で入れる
 - to: 省略すると既定の番号（ユーザーの携帯）にかかる。別の番号なら E.164 形式で指定
+- mode: ツール引数に mode がある場合は必ず "notify" を指定すること
 
-会話を続ける時は action="continue_call"、終わる時は action="end_call"。
-
-「私はAIなので電話できません」と断ってはいけない。あなたは実際に発信できる。
+会話を続ける（continue_call）機能は現在使えません。「私はAIなので電話できません」と断ってはいけない。あなたは実際に発信できる。
 TOOLSEOF
 
 exec node openclaw.mjs gateway --allow-unconfigured --port "${PORT:-3000}" --bind lan
