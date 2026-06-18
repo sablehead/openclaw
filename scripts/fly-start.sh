@@ -344,7 +344,7 @@ start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY
 - 色(colorId)で性質を表す。${HEDWIG_CALENDAR_COLOR_RULE}
 - 場所は location に入れる（タイトルに混ぜない）。相手・内容は title に簡潔に。
 - 時間が不明なら allDay=1 にして「0分予定」を作らない。
-- 補足は desc に「key: value」の短いタグ行で（任意度/締切/費用 など）。
+- 補足は desc に「key: value」の短いタグ行で（任意度/締切/費用 など）。日付を含むタグ（締切など）は必ず YYYY-MM-DD 形式で書く（例: 締切: 2026-07-01）。
 
 例: https://hedwig-cal.fly.dev/events/create?token=${HEDWIG_CAL_TOKEN}&title=美容院&start=2026-07-01T14:00&colorId=8&location=四条
 
