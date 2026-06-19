@@ -353,6 +353,12 @@ start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY
 
 例: https://hedwig-cal.fly.dev/events/create?token=${HEDWIG_CAL_TOKEN}&title=美容院&start=2026-07-01T14:00&colorId=8&location=四条
 
+作成のレスポンス（JSON）を必ず読み、その内容だけを報告すること（実行結果を見ずに推測で「登録しました」と言わない）:
+- created=true → 新規に登録できた。「登録しました」と伝える（title と日時を添える）。
+- created=false かつ duplicate=true → 同じ予定が既にあった。「すでに登録済みです」と伝える。
+- ok が無い／error が返る → 「登録できませんでした」と正直に伝える。成功扱いにしない。
+同じ title・開始日時で登録し直してもサーバが重複を検知して既存の予定を返すので、二重登録にはならない。
+
 ## Gmail 未読メール
 
 未読メールを確認するには以下のエンドポイントをweb_fetchで呼び出す（GETのみ）:
@@ -414,6 +420,8 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 - mode: ツール引数に mode がある場合は必ず "notify" を指定すること
 
 会話を続ける（continue_call）機能は現在使えません。「私はAIなので電話できません」と断ってはいけない。あなたは実際に発信できる。
+
+発信後はツールの実行結果を確認してから報告すること。成功の結果が返ったときだけ「電話しました」と伝え、エラー・失敗なら「電話できませんでした」と正直に言う（実行結果を見ずに「電話した」と言わない）。
 TOOLSEOF
 
 exec node openclaw.mjs gateway --allow-unconfigured --port "${PORT:-3000}" --bind lan
