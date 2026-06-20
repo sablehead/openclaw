@@ -263,13 +263,33 @@ WORKSPACE_DIR="/data/workspace"
 mkdir -p "$WORKSPACE_DIR"
 mkdir -p "$WORKSPACE_DIR/memory"
 
-# Workspace files: only create if not already on the persistent volume.
-# Personal details (name, location, schedule, behaviour rules) live on the
-# server only — never committed to the public repo.
-for f in IDENTITY.md USER.md SOUL.md; do
-  if [ ! -f "$WORKSPACE_DIR/$f" ]; then
-    echo "⚠️  $WORKSPACE_DIR/$f not found. Create it manually on the server."
+# Persona source of truth = the private rulebook (version-controlled, reviewable),
+# not this volume. SOUL.md (PII-free persona) comes from rulebook roles/hedwig.md;
+# USER.md (PII) is injected from a secret so it never lands in git. The volume is a
+# cache, not a single point of failure: we overwrite ONLY on a successful fetch, so a
+# GitHub/network outage keeps the last-known-good copy instead of an empty persona.
+# Repo id is a secret too, so this public file names neither the repo nor any content.
+if [ -n "$HEDWIG_USER_PROFILE" ]; then
+  printf '%s\n' "$HEDWIG_USER_PROFILE" > "$WORKSPACE_DIR/USER.md"
+fi
+if [ -n "$HEDWIG_RULEBOOK_REPO" ] && [ -n "$GITHUB_TOKEN" ]; then
+  RB_DIR="$(mktemp -d)"
+  if git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${HEDWIG_RULEBOOK_REPO}.git" "$RB_DIR" >/dev/null 2>&1 \
+     && [ -f "$RB_DIR/roles/hedwig.md" ]; then
+    # Strip the rulebook note's YAML frontmatter so SOUL.md is a clean persona prompt.
+    awk 'NR==1 && $0=="---"{inf=1; next} inf && $0=="---"{inf=0; next} !inf' \
+      "$RB_DIR/roles/hedwig.md" > "$WORKSPACE_DIR/SOUL.md"
+    # Identity is folded into SOUL.md now; drop the stale standalone file so the
+    # runtime doesn't inject a second, older identity alongside it.
+    rm -f "$WORKSPACE_DIR/IDENTITY.md"
+    echo "fly-start: persona SOUL.md sourced from rulebook"
+  else
+    echo "fly-start: rulebook fetch failed; keeping last-known-good persona on volume"
   fi
+  rm -rf "$RB_DIR"
+fi
+for f in USER.md SOUL.md; do
+  [ -f "$WORKSPACE_DIR/$f" ] || echo "⚠️  $WORKSPACE_DIR/$f missing (no secret/rulebook and no volume copy)."
 done
 
 # MEMORY.md — long-term memory (create only if not exists; never overwrite)
