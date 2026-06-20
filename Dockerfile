@@ -336,6 +336,10 @@ RUN chmod +x /app/fly-root-init.sh
 # no LLM). Baked in so it is version-controlled and always present at a stable path.
 COPY --chown=node:node scripts/mem-consolidate.sh /app/mem-consolidate.sh
 RUN chmod +x /app/mem-consolidate.sh
+# Weekly proactive memory-extraction script (command cron): pulls durable user facts
+# from recent direct chats into MEMORY.md via the model API. Append-only + snapshot.
+COPY --chown=node:node scripts/mem-extract.mjs /app/mem-extract.mjs
+RUN chmod +x /app/mem-extract.mjs
 
 ENV NODE_ENV=production
 
