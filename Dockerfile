@@ -332,6 +332,10 @@ RUN chmod +x /app/fly-start.sh
 # openclaw doctor --fix can reset /data/openclaw.json to root; this ensures node can always write it.
 COPY scripts/fly-root-init.sh /app/fly-root-init.sh
 RUN chmod +x /app/fly-root-init.sh
+# Weekly memory-consolidation script, invoked by a Gateway command cron (deterministic,
+# no LLM). Baked in so it is version-controlled and always present at a stable path.
+COPY --chown=node:node scripts/mem-consolidate.sh /app/mem-consolidate.sh
+RUN chmod +x /app/mem-consolidate.sh
 
 ENV NODE_ENV=production
 
