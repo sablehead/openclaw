@@ -32,7 +32,7 @@ import { readFileSync } from "node:fs";
 
 const STATE = process.env.OPENCLAW_STATE_DIR || "/data";
 const OPENCLAW =
-  process.env.BRIEF_SENTINEL_OPENCLAW || new URL("../openclaw.mjs", import.meta.url).pathname;
+  process.env.BRIEF_SENTINEL_OPENCLAW || new URL("./openclaw.mjs", import.meta.url).pathname;
 const MIN_CHARS = Number(process.env.BRIEF_SENTINEL_MIN_CHARS || 80);
 const WINDOW_MS = Number(process.env.BRIEF_SENTINEL_WINDOW_MIN || 90) * 60_000;
 const DRYRUN = process.env.BRIEF_SENTINEL_DRYRUN === "1";
@@ -112,7 +112,10 @@ for (const { label, id } of BRIEFS) {
   // Failed runs are owned by the Cron Failure Alert; we only judge "ok" runs.
   if (run.status !== "ok") continue;
   const s = typeof run.summary === "string" ? run.summary : "";
-  const when = new Date(run.runAtMs).toISOString().slice(0, 16).replace("T", " ");
+  // JST for the alert (briefs are scheduled in Asia/Tokyo); +9h then format as
+  // UTC-of-shifted avoids any ICU/timezone-data dependency.
+  const when =
+    new Date(run.runAtMs + 9 * 3600_000).toISOString().slice(5, 16).replace("T", " ") + " JST";
   const trimmed = s.trim();
 
   const leak = leakKind(s);
