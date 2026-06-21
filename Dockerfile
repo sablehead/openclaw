@@ -340,6 +340,11 @@ RUN chmod +x /app/mem-consolidate.sh
 # from recent direct chats into MEMORY.md via the model API. Append-only + snapshot.
 COPY --chown=node:node scripts/mem-extract.mjs /app/mem-extract.mjs
 RUN chmod +x /app/mem-extract.mjs
+# Brief quality sentinel (command cron, deterministic, no LLM): inspects the
+# just-fired brief run-log for status:ok-but-degraded summaries (empty, section
+# failure, leaked token) that the Cron Failure Alert cannot see, and DMs the owner.
+COPY --chown=node:node scripts/brief-sentinel.mjs /app/brief-sentinel.mjs
+RUN chmod +x /app/brief-sentinel.mjs
 
 ENV NODE_ENV=production
 
