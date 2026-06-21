@@ -1,0 +1,17 @@
+{
+  "id": "hedwig-proxy",
+  "activation": {
+    "onStartup": true
+  },
+  "enabledByDefault": false,
+  "name": "Hedwig Proxy",
+  "description": "Authenticated write actions against the Hedwig proxy service (calendar).",
+  "contracts": {
+    "tools": ["calendar_create"]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

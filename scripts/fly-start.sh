@@ -165,6 +165,28 @@ fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 fi
 
+# Enable the Hedwig proxy plugin (calendar_create write tool) when the proxy
+# token is set. The tool POSTs to hedwig-cal with the token on the Authorization
+# header (gateway-side), so creation no longer rides a web_fetch GET URL that
+# would leak the token into request logs and the agent's session transcript.
+if [ -n "$HEDWIG_CAL_TOKEN" ]; then
+  OPENCLAW_CONFIG_FILE="$CONFIG_FILE" node -e "
+const fs = require('fs');
+const path = process.env.OPENCLAW_CONFIG_FILE;
+let cfg = {};
+if (fs.existsSync(path)) { try { cfg = JSON.parse(fs.readFileSync(path, 'utf8')); } catch (_) {} }
+cfg.plugins = cfg.plugins || {};
+cfg.plugins.entries = cfg.plugins.entries || {};
+cfg.plugins.entries['hedwig-proxy'] = cfg.plugins.entries['hedwig-proxy'] || {};
+cfg.plugins.entries['hedwig-proxy'].enabled = true;
+// Strict allowlist: the tool stays invisible to the model unless listed here.
+cfg.tools = cfg.tools || {};
+cfg.tools.allow = cfg.tools.allow || [];
+if (!cfg.tools.allow.includes('calendar_create')) cfg.tools.allow.push('calendar_create');
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
+"
+fi
+
 # Write Google API key to auth-profiles if provided via Fly.io secret.
 # Use || true so a pre-existing root-owned file never blocks gateway startup.
 if [ -n "$GOOGLE_API_KEY" ]; then
@@ -363,22 +385,22 @@ https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=js
 「今日」「明日」などの質問は今日の日付（JST）を基準にdateパラメーターを指定すること。
 任意の日付を指定でき、過去・未来どちらも取得できる。
 
-予定を登録（作成）するには以下をweb_fetchで呼び出す（web_fetchはGET専用なのでGETで作成する）:
+予定を登録（作成）するには calendar_create ツールを使う（web_fetch の GET URL では作成しない。トークンはツールがサーバ側で付けるので渡さない）:
 
-エンドポイント: https://hedwig-cal.fly.dev/events/create
-必須パラメーター: token=${HEDWIG_CAL_TOKEN} / title=タイトル / start=開始
-任意パラメーター: end=終了 / colorId=色(1-11) / location=場所 / desc=詳細 / allDay=1（終日）
+ツール: calendar_create
+必須パラメーター: title=タイトル / start=開始
+任意パラメーター: end=終了 / colorId=色(1-11) / location=場所 / desc=詳細 / allDay=true（終日）
 
 start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY-MM-DD。end省略時は開始の1時間後。
 登録フォーマット（人もAIも後から性質を扱えるように必ず守る）:
 - 色(colorId)で性質を表す。${HEDWIG_CALENDAR_COLOR_RULE}
 - 場所は location に入れる（タイトルに混ぜない）。相手・内容は title に簡潔に。
-- 時間が不明なら allDay=1 にして「0分予定」を作らない。
+- 時間が不明なら allDay=true にして「0分予定」を作らない。
 - 補足は desc に「key: value」の短いタグ行で（任意度/締切/費用 など）。日付を含むタグ（締切など）は必ず YYYY-MM-DD 形式で書く（例: 締切: 2026-07-01）。
 
-例: https://hedwig-cal.fly.dev/events/create?token=${HEDWIG_CAL_TOKEN}&title=美容院&start=2026-07-01T14:00&colorId=8&location=四条
+例: calendar_create を {title:"美容院", start:"2026-07-01T14:00", colorId:"8", location:"四条"} で呼ぶ。
 
-作成のレスポンス（JSON）には report（確定した報告文）が入っている。共通ルールの通り、その report をそのまま伝えること（成否を自分で推測しない）。report が無い／error が返る／HTTPエラーのときは成功扱いにせず「登録できませんでした」と正直に伝える。
+ツールの実行結果（JSON）には report（確定した報告文）が入っている。共通ルールの通り、その report をそのまま伝えること（成否を自分で推測しない）。report が無い／失敗のときは成功扱いにせず「登録できませんでした」と正直に伝える。
 同じ title・開始日時はサーバが重複を検知して既存の予定を返すので、二重登録の心配はない。
 
 ## Gmail 未読メール
