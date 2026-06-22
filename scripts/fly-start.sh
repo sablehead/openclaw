@@ -323,7 +323,6 @@ MEMORY
 fi
 
 # TOOLS.md — available APIs and tools
-YAHOO_APPID="${YAHOO_APP_ID}"
 cat > "$WORKSPACE_DIR/TOOLS.md" << TOOLSEOF
 # Tools
 
@@ -332,32 +331,24 @@ cat > "$WORKSPACE_DIR/TOOLS.md" << TOOLSEOF
 - 応答に「そのまま伝える用の文」（予定作成の report、天気の line など）が含まれていたら、その文を一字一句そのまま使う。自分で言い換えたり成否を補ったりしない。
 - そういう文が無い場合も、報告は応答に実在するフィールドだけを根拠にする。error フィールド・HTTPエラー・成功フラグ無しのときは、成功扱いにせず正直に「できませんでした」と伝える。
 
-## Yahoo! 気象情報API（日本の雨量・降水予報）
-雨が降っているか、傘が必要かを聞かれたらこのAPIを使う。
-※このAPIが返すのは降水強度（mm/h）のみ。気温・天気（晴れ/曇り）は返さない。
+## 天気・傘（/weather）
 
-エンドポイント: https://map.yahooapis.jp/weather/V1/place
-appid: $YAHOO_APPID
-必須パラメーター: coordinates=経度,緯度（経度が先）、output=json
+天気・気温・傘の要否を聞かれたら、以下のエンドポイントを web_fetch で呼び出す（GETのみ）。web_search（Brave等）で天気を判断しない。
 
-主要都市の座標（経度,緯度）:
-- 大阪: 135.5023,34.6937
-- 東京: 139.6917,35.6895
-- 福岡: 130.4017,33.5902
-- 札幌: 141.3468,43.0642
-- 名古屋: 136.9066,35.1815
-- 京都: 135.7556,35.0116
+エンドポイント: https://hedwig-cal.fly.dev/weather
+必須パラメーター: token=${HEDWIG_CAL_TOKEN}
+任意パラメーター: day=today または day=tomorrow（省略すると tomorrow）。対応はこの2日のみ。
 
-URLの例（大阪）:
-https://map.yahooapis.jp/weather/V1/place?coordinates=135.5023,34.6937&output=json&appid=$YAHOO_APPID
+例: https://hedwig-cal.fly.dev/weather?day=tomorrow&token=${HEDWIG_CAL_TOKEN}
 
-レスポンスの読み方:
-- Weather[].Type = "observation" → 現在の実測値
-- Weather[].Type = "forecast" → 予測値（10分ごと、最大60分先）
-- Weather[].Rainfall = 降水強度（mm/h）。0.0なら雨なし。
+レスポンス（JSON）:
+- line: 天気・最高/最低気温・傘の要否をまとめた確定の一文。共通ルールの通り、この line を一字一句そのまま転記する。言い換えたり傘の要否を自分で判断し直したりしない。
+- summary: 天気概況（晴れ/曇り/雨 など）
+- tempMax / tempMin: 最高・最低気温（℃）
+- umbrella: 傘が必要なら true（サーバが降水シンボル・積算降水量から確定済み）
+- umbrellaText: 「傘を持って」または「傘は不要」
 
-## 天気全般（気温・天気概況）
-気温や「晴れ/曲り/雨」などの一般的な天気はBrave Searchで検索すること。
+出典名（Yahoo などのサービス名）は名乗らない・勝手に作らない。today/tomorrow 以外の日付や、応答に無い数値は推測で答えず、わからないと正直に伝える。
 
 ## Google Calendar API
 
