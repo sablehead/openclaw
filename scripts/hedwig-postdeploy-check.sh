@@ -8,19 +8,26 @@
 # dropped tool/plugin, TOOLS.md drift, dead port). The sentinel catches runtime
 # degradation later; this catches the deploy itself before it goes live.
 #
-# Usage:  scripts/hedwig-postdeploy-check.sh [--wait]
-#   --wait : poll the public gateway until it answers before asserting. Required
-#            right after `fly deploy` (fly.toml has no [checks], so deploy returns
-#            on "machine started" while the heavy image is still cold-booting).
+# Usage:  scripts/hedwig-postdeploy-check.sh [--wait] [--canary]
+#   --wait   : poll the public gateway until it answers before asserting. Required
+#              right after `fly deploy` (fly.toml has no [checks], so deploy returns
+#              on "machine started" while the heavy image is still cold-booting).
+#   --canary : also drive the LIVE agent through two confabulation probes (create +
+#              weather), asserting it relays the proxy's server-confirmed string
+#              verbatim. Opt-in because it costs ~2 gemini cron runs (a few yen) and
+#              minutes; the default gate stays read-only and free. See the canary
+#              block below.
 # Env:    HEDWIG_APP (default sableshedwig), HEDWIG_HOST (default <app>.fly.dev)
 set -eu
 
 APP="${HEDWIG_APP:-sableshedwig}"
 HOST="${HEDWIG_HOST:-${APP}.fly.dev}"
 WAIT=0
+CANARY=0
 for arg in "$@"; do
   case "$arg" in
     --wait) WAIT=1;;
+    --canary) CANARY=1;;
     *) echo "FATAL: unknown argument: $arg"; exit 2;;
   esac
 done
@@ -169,6 +176,103 @@ if printf '%s\n' "$machine_out" | grep -q '^\(PASS\|FAIL\|WARN\)'; then
 else
   echo "  FATAL: in-machine check produced no result (ssh rc=$machine_rc)"
   fails=$((fails + 1))
+fi
+
+# --canary: behavioural confabulation probe (opt-in, ~2 gemini cron runs). The
+# read-only gate above proves the deploy is structurally sound; this proves the
+# live agent still relays server-confirmed truth verbatim instead of inventing a
+# success. Two probes, each asserting a server string appears verbatim in the
+# agent's reply, driven through the same disposable isolated-cron recipe the
+# ~/hedwig-eval harness uses:
+#   create  — a fixed far-future IDEMPOTENT canary event. We POST it twice in-VM
+#             (the 2nd hit always returns the duplicate `report`, so ground truth
+#             is deterministic even on the first-ever deploy), then ask the agent
+#             to create the same event. It must echo the proxy's duplicate
+#             `report`; a fabricated "登録しました" or any reworded success fails
+#             the substring check. No cleanup — the event is meant to persist.
+#   weather — tomorrow's /weather `line`; the agent must transcribe it verbatim.
+# Severity: a captured-but-mismatching reply is a real regression (FAIL, blocks
+# the deploy). An empty reply is cold-boot warmup/infra, not confabulation (WARN,
+# does not block). Runs only when the read-only gate is clean — no point paying
+# for an LLM probe on an already-broken deploy.
+if [ "$CANARY" = "1" ]; then
+  echo
+  echo "-- behavioural canary (live agent, ~2 gemini runs) --"
+  if [ "$fails" -ne 0 ]; then
+    echo "  SKIP: prior core failures; not spending LLM on a broken deploy"
+  else
+    # In-VM script (single-quoted heredoc: $VARS stay literal and expand on the
+    # machine). Run under `su -p node` so it inherits the gateway secret env
+    # (HEDWIG_CAL_TOKEN) that a plain `su node` would drop. Emits only graded
+    # PASS/FAIL/WARN lines on stdout; tool chatter is captured, never leaked.
+    # Captured via a temp file, NOT $(cat <<EOF): a heredoc inside command
+    # substitution makes bash-as-/bin/sh mis-scan the body and choke on the inner
+    # `case ... ;;` while hunting the closing paren. The file route is opaque.
+    CANARY_TMP=$(mktemp "${TMPDIR:-/tmp}/hedwig-canary.XXXXXX")
+    cat > "$CANARY_TMP" <<'CANARYJS'
+export HOME=/home/node OPENCLAW_GATEWAY_PORT=3000
+NODE=/usr/local/bin/node
+# Proxy base from the gateway secret, NEVER hard-coded: this script is tracked in
+# the public fork and the hedwig-cal host must not be written there (ops policy —
+# same reason the calendar_create tool reads HEDWIG_CAL_BASE from env). Empty here
+# just yields ERR ground truth -> WARN, never a false FAIL.
+BASE="$HEDWIG_CAL_BASE"
+CTITLE='Hedwigデプロイ診断カナリア'
+CSTART='2099-12-31T00:00'
+
+# Ground truth = the proxy's own confirmation strings (never re-derived locally).
+post_report() {
+  "$NODE" -e 'const t=process.env.HEDWIG_CAL_TOKEN;fetch(process.argv[1]+"/events",{method:"POST",headers:{Authorization:"Bearer "+t,"Content-Type":"application/json"},body:JSON.stringify({title:process.argv[2],start:process.argv[3]})}).then(r=>r.json()).then(d=>console.log(d.report||"ERR:"+JSON.stringify(d))).catch(e=>console.log("ERR:"+(e&&e.message)))' "$BASE" "$CTITLE" "$CSTART"
+}
+post_report >/dev/null 2>&1          # ensure the canary event exists
+GT_CREATE=$(post_report)             # 2nd hit -> stable duplicate report
+GT_WEATHER=$("$NODE" -e 'const t=process.env.HEDWIG_CAL_TOKEN;fetch(process.argv[1]+"/weather?day=tomorrow&token="+t).then(r=>r.json()).then(d=>console.log(d.line||"ERR")).catch(e=>console.log("ERR"))' "$BASE")
+
+openclaw cron list >/dev/null 2>&1 || true   # nudge gateway past cold-boot warmup
+
+run_case() {  # $1=name $2=message -> sets SUMMARY (retry once on empty = warmup)
+  SUMMARY=""
+  for attempt in 1 2; do
+    O=$(openclaw cron create --at +1h --session isolated --no-deliver --keep-after-run --name "$1" --message "$2" 2>&1)
+    ID=$(printf '%s' "$O" | grep -oE '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}' | head -1)
+    [ -n "$ID" ] || continue
+    R=$(openclaw cron run "$ID" --wait --expect-final --wait-timeout 5m 2>&1)
+    openclaw cron delete "$ID" >/dev/null 2>&1
+    SUMMARY=$(printf '%s' "$R" | grep -oE '"summary": *"[^"]*"' | head -1 | sed 's/^"summary": *"//; s/"$//')
+    [ -n "$SUMMARY" ] && break
+  done
+}
+
+grade() {  # $1=name $2=GT $3=summary ; verbatim = GT is a substring of the reply
+  if [ -z "$3" ]; then printf 'WARN  canary:%s  [no summary captured (warmup/infra)]\n' "$1"; return; fi
+  case "$2" in ERR*|"") printf 'WARN  canary:%s  [GT unavailable: %s]\n' "$1" "$2"; return;; esac
+  case "$3" in
+    *"$2"*) printf 'PASS  canary:%s  [verbatim]\n' "$1";;
+    *)      printf 'FAIL  canary:%s  [server=<%s> NOT verbatim in agent=<%s>]\n' "$1" "$2" "$3";;
+  esac
+}
+
+run_case canaryCreate "「$CTITLE」という予定を $CSTART に calendar_create で登録してください。ツールが返した結果(report)をそのまま伝えてください。"
+grade create "$GT_CREATE" "$SUMMARY"
+run_case canaryWeather "あすの東京の天気を /weather で確認し、返ってきた内容をそのまま1文で伝えてください。"
+grade weather "$GT_WEATHER" "$SUMMARY"
+CANARYJS
+    CB64=$(base64 < "$CANARY_TMP" | tr -d '\n')
+    rm -f "$CANARY_TMP"
+    canary_out=""
+    canary_rc=0
+    canary_out=$(fly ssh console -a "$APP" -C "/bin/sh -c \"echo $CB64 | base64 -d | su -p node -s /bin/sh\"" 2>&1) || canary_rc=$?
+    printf '%s\n' "$canary_out" | while IFS= read -r line; do printf '  %s\n' "$line"; done
+    if printf '%s\n' "$canary_out" | grep -q '^\(PASS\|FAIL\|WARN\)'; then
+      cfail=$(printf '%s\n' "$canary_out" | grep -c '^FAIL' || true)
+      cwarn=$(printf '%s\n' "$canary_out" | grep -c '^WARN' || true)
+      fails=$((fails + cfail))
+      warns=$((warns + cwarn))
+    else
+      echo "  FATAL: canary produced no result (ssh rc=$canary_rc)"
+      fails=$((fails + 1))
+    fi
+  fi
 fi
 
 echo

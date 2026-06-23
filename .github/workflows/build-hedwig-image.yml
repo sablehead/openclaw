@@ -77,9 +77,12 @@ jobs:
       # Fail-fast on known deploy landmines (shadow /data/fly-start.sh, dropped
       # tool/plugin, TOOLS.md drift, dead port). --wait polls past cold boot
       # since fly.toml has no [checks] to gate the deploy on gateway readiness.
+      # --canary then drives the live agent through a create + weather probe so a
+      # deploy that ships a confabulating/verbatim-breaking prompt fails here
+      # (real mismatch blocks; cold-boot warmup only warns). ~2 gemini runs.
       - name: Post-deploy gate
         if: github.event_name == 'workflow_dispatch' && inputs.deploy
-        run: scripts/hedwig-postdeploy-check.sh --wait
+        run: scripts/hedwig-postdeploy-check.sh --wait --canary
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
 
