@@ -32,7 +32,10 @@ for arg in "$@"; do
   esac
 done
 
-command -v fly  >/dev/null 2>&1 || { echo "FATAL: fly CLI not found on PATH"; exit 2; }
+# The CLI is `fly` locally but `flyctl` on the CI runner (setup-flyctl installs
+# flyctl and the Deploy step calls `flyctl deploy`); accept either.
+FLY=$(command -v fly || command -v flyctl || true)
+[ -n "$FLY" ] || { echo "FATAL: fly/flyctl CLI not found on PATH"; exit 2; }
 command -v curl >/dev/null 2>&1 || { echo "FATAL: curl not found on PATH"; exit 2; }
 
 # Single public-443 probe -> normalized http code (000 on connect failure).
@@ -158,7 +161,7 @@ machine_rc=0
 attempt=1
 while [ "$attempt" -le 2 ]; do
   machine_rc=0
-  machine_out=$(fly ssh console -a "$APP" -C "/bin/sh -c \"echo $B64 | base64 -d | node\"" 2>&1) || machine_rc=$?
+  machine_out=$("$FLY" ssh console -a "$APP" -C "/bin/sh -c \"echo $B64 | base64 -d | node\"" 2>&1) || machine_rc=$?
   if printf '%s\n' "$machine_out" | grep -q '^\(PASS\|FAIL\|WARN\)'; then break; fi
   [ "$attempt" -eq 2 ] && break
   echo "  (fly ssh produced no result; retrying once)"
@@ -261,7 +264,7 @@ CANARYJS
     rm -f "$CANARY_TMP"
     canary_out=""
     canary_rc=0
-    canary_out=$(fly ssh console -a "$APP" -C "/bin/sh -c \"echo $CB64 | base64 -d | su -p node -s /bin/sh\"" 2>&1) || canary_rc=$?
+    canary_out=$("$FLY" ssh console -a "$APP" -C "/bin/sh -c \"echo $CB64 | base64 -d | su -p node -s /bin/sh\"" 2>&1) || canary_rc=$?
     printf '%s\n' "$canary_out" | while IFS= read -r line; do printf '  %s\n' "$line"; done
     if printf '%s\n' "$canary_out" | grep -q '^\(PASS\|FAIL\|WARN\)'; then
       cfail=$(printf '%s\n' "$canary_out" | grep -c '^FAIL' || true)
