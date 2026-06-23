@@ -8,15 +8,41 @@
 # dropped tool/plugin, TOOLS.md drift, dead port). The sentinel catches runtime
 # degradation later; this catches the deploy itself before it goes live.
 #
-# Usage:  scripts/hedwig-postdeploy-check.sh
+# Usage:  scripts/hedwig-postdeploy-check.sh [--wait]
+#   --wait : poll the public gateway until it answers before asserting. Required
+#            right after `fly deploy` (fly.toml has no [checks], so deploy returns
+#            on "machine started" while the heavy image is still cold-booting).
 # Env:    HEDWIG_APP (default sableshedwig), HEDWIG_HOST (default <app>.fly.dev)
 set -eu
 
 APP="${HEDWIG_APP:-sableshedwig}"
 HOST="${HEDWIG_HOST:-${APP}.fly.dev}"
+WAIT=0
+for arg in "$@"; do
+  case "$arg" in
+    --wait) WAIT=1;;
+    *) echo "FATAL: unknown argument: $arg"; exit 2;;
+  esac
+done
 
 command -v fly  >/dev/null 2>&1 || { echo "FATAL: fly CLI not found on PATH"; exit 2; }
 command -v curl >/dev/null 2>&1 || { echo "FATAL: curl not found on PATH"; exit 2; }
+
+# Single public-443 probe -> normalized http code (000 on connect failure).
+probe_443() { curl -s --http1.1 -m 20 -o /dev/null -w '%{http_code}' "https://${HOST}/" 2>/dev/null || true; }
+ready_code() { case "$1" in 2*|3*|401|403) return 0;; *) return 1;; esac; }
+
+# --wait: cold-boot poll. Block until the gateway answers (any non-5xx) or give
+# up after ~90s, then let the real checks run and grade the final state.
+if [ "$WAIT" = "1" ]; then
+  echo "-- waiting for gateway readiness (max ~90s) --"
+  i=0
+  while [ "$i" -lt 30 ]; do
+    rc=$(probe_443); rc="${rc:-000}"
+    if ready_code "$rc"; then echo "  ready: http $rc after ${i}x3s"; break; fi
+    i=$((i+1)); sleep 3
+  done
+fi
 
 fails=0
 warns=0
@@ -30,14 +56,11 @@ echo
 echo "-- public reachability (operator -> Fly proxy) --"
 
 # Gateway / Control UI on 443->3000. Device auth may return 200 or a login page;
-# a 5xx/connect failure means the gateway never came up. --http1.1 per ops memo
-# (HTTP/2 masks some proxy states). -m caps cold-boot wait.
-code=$(curl -s --http1.1 -m 20 -o /dev/null -w '%{http_code}' "https://${HOST}/" || true)
-code="${code:-000}"
-case "$code" in
-  2*|3*|401|403) core 0 "public:gateway-443  ($code)";;
-  *)             core 1 "public:gateway-443" "http $code (5xx/000 = not ready)";;
-esac
+# a 5xx/connect failure means the gateway never came up. ready_code treats any
+# 2xx/3xx/401/403 as up (see probe_443: --http1.1 per ops memo, HTTP/2 masks
+# some proxy states).
+code=$(probe_443); code="${code:-000}"
+if ready_code "$code"; then core 0 "public:gateway-443  ($code)"; else core 1 "public:gateway-443" "http $code (5xx/000 = not ready)"; fi
 
 # voice-call webhook on shared-IPv4 SNI port 8443->3334. Unsigned POST must 401
 # (Twilio signature check). 000/5xx = listener missing or TLS route broken.
@@ -122,7 +145,18 @@ NODEJS
 B64=$(printf '%s' "$NODE_CHECK" | base64 | tr -d '\n')
 machine_out=""
 machine_rc=0
-machine_out=$(fly ssh console -a "$APP" -C "/bin/sh -c \"echo $B64 | base64 -d | node\"" 2>&1) || machine_rc=$?
+# `fly ssh console` issues an SSH cert on first use and occasionally needs a
+# second try in CI (cert/tunnel race). Retry once when the block returned no
+# graded lines so a connectivity flake is not scored as a deploy defect.
+attempt=1
+while [ "$attempt" -le 2 ]; do
+  machine_rc=0
+  machine_out=$(fly ssh console -a "$APP" -C "/bin/sh -c \"echo $B64 | base64 -d | node\"" 2>&1) || machine_rc=$?
+  if printf '%s\n' "$machine_out" | grep -q '^\(PASS\|FAIL\|WARN\)'; then break; fi
+  [ "$attempt" -eq 2 ] && break
+  echo "  (fly ssh produced no result; retrying once)"
+  attempt=$((attempt+1)); sleep 5
+done
 
 # Re-grade the machine block locally so its PASS/FAIL/WARN lines roll into the
 # same totals as the public checks (fly ssh exit code only tells us node's).
