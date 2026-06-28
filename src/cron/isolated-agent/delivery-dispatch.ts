@@ -955,6 +955,21 @@ export async function dispatchCronDelivery(
           accountId: delivery.accountId,
           threadId: delivery.threadId,
           payloads: payloadsForDelivery,
+          // Run the outbound payload hook on cron announce deliveries too, for
+          // parity with the normal reply path (route-reply). The hook carries the
+          // originating cron agent session key so plugins can correlate the
+          // delivery back to the job that produced it.
+          replyPayloadSendingHook: {
+            kind: "final",
+            channel: delivery.channel,
+            sessionKey: params.agentSessionKey,
+            context: {
+              channelId: delivery.channel,
+              ...(delivery.accountId ? { accountId: delivery.accountId } : {}),
+              conversationId: delivery.to,
+              sessionKey: params.agentSessionKey,
+            },
+          },
           session: deliverySession,
           identity,
           bestEffort: params.deliveryBestEffort,
