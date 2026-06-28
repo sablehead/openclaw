@@ -164,17 +164,33 @@ export function registerHedwigFeedback(api: OpenClawPluginApi): void {
     namespace: FEEDBACK_STORE_NAMESPACE,
     maxEntries: 5_000,
   });
+  // DIAG (temporary): confirm api.on actually registers this hook at startup.
+  console.error("[hedwigfb-diag] registerHedwigFeedback: wiring hook + interactive handler");
 
   // Attach: only brief (cron) Telegram finals. `final` is the single delivered
   // answer; the channel places reply_markup on the last text chunk on its own.
   api.on("reply_payload_sending", (event) => {
+    const surface =
+      event.channel === "telegram" && event.kind === "final"
+        ? resolveBriefSurfaceTag(event.sessionKey)
+        : null;
+    // DIAG (temporary): trace firing + gating to locate why brief buttons don't render.
+    console.error(
+      `[hedwigfb-diag] hook fired ${JSON.stringify({
+        channel: event.channel,
+        kind: event.kind,
+        sessionKey: event.sessionKey,
+        surface,
+        alreadyButtoned: hasFeedbackButtons(event.payload),
+      })}`,
+    );
     if (event.channel !== "telegram" || event.kind !== "final") {
       return {};
     }
-    const surface = resolveBriefSurfaceTag(event.sessionKey);
     if (!surface || hasFeedbackButtons(event.payload)) {
       return {};
     }
+    console.error(`[hedwigfb-diag] attaching buttons surface=${surface}`);
     return { payload: attachFeedbackButtons(event.payload, surface) };
   });
 
@@ -184,6 +200,10 @@ export function registerHedwigFeedback(api: OpenClawPluginApi): void {
     namespace: FEEDBACK_NAMESPACE,
     handler: async (raw) => {
       const ctx = raw as FeedbackCallbackContext;
+      // DIAG (temporary): confirm taps reach the handler.
+      console.error(
+        `[hedwigfb-diag] interactive handler fired payload=${ctx.callback?.payload} authorized=${ctx.auth?.isAuthorizedSender}`,
+      );
       // Claim the callback (it's our namespace) even when we drop it, so the
       // generic path never also fires for these taps.
       if (!ctx.auth?.isAuthorizedSender) {
