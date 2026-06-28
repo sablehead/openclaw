@@ -8,7 +8,6 @@
 // forwards the fields and relays the server's confirmed `report` verbatim.
 import { definePluginEntry, type OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
 import { Type } from "typebox";
-import { registerHedwigFeedback } from "./feedback.js";
 
 const CalendarCreateSchema = Type.Object({
   title: Type.String({ description: "Event title (concise; who/what, not the place)." }),
@@ -27,8 +26,6 @@ export default definePluginEntry({
   name: "Hedwig Proxy",
   description: "Authenticated write actions against the Hedwig proxy service (calendar).",
   register(api: OpenClawPluginApi) {
-    // Phase A: one-tap brief feedback (attach buttons + zero-LLM capture to SQLite).
-    registerHedwigFeedback(api);
     api.registerTool({
       name: "calendar_create",
       label: "Calendar Create",

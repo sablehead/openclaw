@@ -980,12 +980,6 @@ async function renderPresentationForDelivery(
   const rendered = handler.renderPresentation
     ? await handler.renderPresentation(adaptedPayload)
     : null;
-  // DIAG (temporary): trace presentation adaptation for brief feedback buttons.
-  if (JSON.stringify(payload.presentation ?? {}).includes("hedwigfb")) {
-    console.error(
-      `[fbdiag-core] renderPresentation: hasHandlerRender=${Boolean(handler.renderPresentation)} adaptedBlocks=${JSON.stringify(adaptedPresentation.blocks)} renderedChannelData=${JSON.stringify(rendered?.channelData ?? null)}`,
-    );
-  }
   if (rendered) {
     const { presentation: _presentation, ...withoutPresentation } = rendered;
     return withoutPresentation;
@@ -1718,12 +1712,6 @@ async function deliverOutboundPayloadsCore(
           consumeImplicitReply: replyToResolution.source === "implicit",
         });
       const deliveryTarget = deliveryHandler.buildTargetRef({ threadId: sendOverrides.threadId });
-      // DIAG (temporary): trace why brief feedback buttons don't render.
-      if (JSON.stringify(effectivePayload).includes("hedwigfb")) {
-        console.error(
-          `[fbdiag-core] dispatch: hasSendPayload=${Boolean(deliveryHandler.sendPayload)} presentation=${Boolean(effectivePayload.presentation)} channelData=${JSON.stringify(effectivePayload.channelData)}`,
-        );
-      }
       if (
         deliveryHandler.sendPayload &&
         ((effectivePayload.isError === true &&

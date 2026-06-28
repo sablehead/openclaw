@@ -16,15 +16,6 @@ function loadTool(): CapturedTool {
     registerTool: (tool: unknown) => {
       captured = tool as CapturedTool;
     },
-    // The feedback wiring (registerHedwigFeedback) also runs in register(); stub
-    // the surfaces it touches so this calendar_create test stays focused.
-    runtime: {
-      state: {
-        openKeyedStore: () => ({ register: async () => {}, lookup: async () => undefined }),
-      },
-    },
-    on: () => {},
-    registerInteractiveHandler: () => {},
   } as unknown as OpenClawPluginApi;
   plugin.register(api);
   if (!captured) {
