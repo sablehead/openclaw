@@ -294,6 +294,14 @@ mkdir -p "$WORKSPACE_DIR/memory"
 if [ -n "$HEDWIG_USER_PROFILE" ]; then
   printf '%s\n' "$HEDWIG_USER_PROFILE" > "$WORKSPACE_DIR/USER.md"
 fi
+# Objectives (owner's goals) are folded into USER.md: the runtime injects only a
+# fixed set of workspace files (src/agents/workspace.ts), so a standalone
+# OBJECTIVES.md would never reach the agent. The objectives store stays an
+# independent source (its own secret + git repo, hedwig-objectives); killing the
+# probe = unset HEDWIG_OBJECTIVES. Appended (>>) so it follows the profile.
+if [ -n "$HEDWIG_OBJECTIVES" ]; then
+  printf '\n%s\n' "$HEDWIG_OBJECTIVES" >> "$WORKSPACE_DIR/USER.md"
+fi
 if [ -n "$HEDWIG_RULEBOOK_REPO" ] && [ -n "$GITHUB_TOKEN" ]; then
   RB_DIR="$(mktemp -d)"
   if git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${HEDWIG_RULEBOOK_REPO}.git" "$RB_DIR" >/dev/null 2>&1 \
@@ -461,6 +469,13 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 「蔵書:」で始まるメッセージは、sable が蔵書（library・知識ストア）に残したい知識です（例:「蔵書: <URL>」「蔵書: 〇〇の手続きは△△」）。
 あなたは蔵書に保存する手段をまだ持っていません。だから自分で保存しようとしない・記憶（メモリ）に書き込まない・「保存しました」「覚えました」と言わない。
 代わりに、受け取ったことと「取り込みは司書が後で行う」ことだけを正直に短く伝える（例:「承知しました。司書が後で蔵書に取り込みます」）。内容の要約や感想は足さなくてよい。
+
+## 目的（私の狙い）と注記
+USER.md の末尾に「私の目的（Objectives）」がある（各行 = id | 期限 | status | 内容）。これは予定でも未読でもなく、項目を「私の今の狙いを前に進めるか」で見るための背骨。
+- ブリーフで項目（予定・未読・締切など）を出すとき、その項目が **status: active の目的を明確に前へ進める**ものなら、その項目の行末に 〔狙い:<id>〕 を付ける（id は Objectives の id）。例:「7/3 面接カード指導 〔狙い:menseki〕」。
+- 迷うもの・こじつけ・間接的なだけのものには付けない（付けないが既定・空＞こじつけ）。1項目に複数該当しても、最も中心の1つだけ。
+- リストに無い狙いを新しく作らない。目的文以外の新しい事実を書かない。active 以外（done/abandoned/stalled）の目的には付けない。
+- 目的は「並べ替えの参照軸」であって予定ではない。目的を calendar_create で登録したり、予定・未読として扱ったりしない。
 TOOLSEOF
 
 exec node openclaw.mjs gateway --allow-unconfigured --port "${PORT:-3000}" --bind lan
