@@ -28,7 +28,8 @@
 // re-running for the same brief slot/day inserts nothing new (INSERT OR IGNORE on
 // UNIQUE(brief_run_id, msg_id)).
 //
-// Env: HEDWIG_CAL_TOKEN|CAL_PROXY_TOKEN (proxy auth), HEDWIG_CAL_BASE (proxy base URL),
+// Env: HEDWIG_CAL_TOKEN|CAL_PROXY_TOKEN (proxy auth), HEDWIG_CAL_BASE (proxy base URL —
+// injected from the fly secret, never hardcoded: this file is tracked in the public fork),
 // OPENCLAW_STATE_DIR (/data), SNAPSHOT_LIMIT (15 = /mail max pool), PUSH_TOP_N (3),
 // PUSH_MIN_SCORE (1), BRIEF_SNAPSHOT_DB (override db path),
 // BRIEF_SNAPSHOT_DRYRUN=1 (compute + print, do not write).
@@ -36,7 +37,9 @@ import { DatabaseSync } from "node:sqlite";
 
 const STATE = process.env.OPENCLAW_STATE_DIR || "/data";
 const DB_PATH = process.env.BRIEF_SNAPSHOT_DB || `${STATE}/hedwig-brief-eval.sqlite`;
-const BASE = (process.env.HEDWIG_CAL_BASE || "https://hedwig-cal.fly.dev").replace(/\/+$/, "");
+// Host comes only from the secret so no external host lands in the public fork (same
+// rule the calendar_create tool and the post-deploy canary follow).
+const BASE = (process.env.HEDWIG_CAL_BASE || "").replace(/\/+$/, "");
 const TOKEN = process.env.HEDWIG_CAL_TOKEN || process.env.CAL_PROXY_TOKEN || "";
 const LIMIT = Number(process.env.SNAPSHOT_LIMIT || 15); // /mail caps at 15 (top-N of a ~40 pool)
 const PUSH_TOP_N = Number(process.env.PUSH_TOP_N || 3); // brief surfaces score>=1 top 2-3
@@ -44,8 +47,8 @@ const PUSH_MIN = Number(process.env.PUSH_MIN_SCORE || 1);
 const DRYRUN = process.env.BRIEF_SNAPSHOT_DRYRUN === "1";
 const log = (m) => console.log(`brief-snapshot: ${m}`);
 
-if (!TOKEN) {
-  log("no HEDWIG_CAL_TOKEN/CAL_PROXY_TOKEN, skip");
+if (!TOKEN || !BASE) {
+  log("no HEDWIG_CAL_TOKEN/HEDWIG_CAL_BASE, skip");
   process.exit(0);
 }
 
