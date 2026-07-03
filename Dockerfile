@@ -345,6 +345,11 @@ RUN chmod +x /app/mem-extract.mjs
 # failure, leaked token) that the Cron Failure Alert cannot see, and DMs the owner.
 COPY --chown=node:node scripts/brief-sentinel.mjs /app/brief-sentinel.mjs
 RUN chmod +x /app/brief-sentinel.mjs
+# Brief-candidate snapshot (command cron, deterministic, no LLM): freezes the /mail
+# scored pool + the pushed/suppressed decision into /data SQLite twice a day, the
+# ground truth for the behavioral-correlation harness (did the owner act on a briefed item).
+COPY --chown=node:node scripts/hedwig-brief-snapshot.mjs /app/hedwig-brief-snapshot.mjs
+RUN chmod +x /app/hedwig-brief-snapshot.mjs
 
 ENV NODE_ENV=production
 
