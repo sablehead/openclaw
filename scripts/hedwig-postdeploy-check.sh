@@ -109,7 +109,7 @@ const pluginOn = (id) => !!(cfg && cfg.plugins && cfg.plugins.entries
 
 // Base tool allowlist + the calendar write tool the proxy plugin ships. Missing
 // here = "[agents/tool-policy] removed N tool(s)" and the model silently refuses.
-for (const t of ['web_fetch', 'write', 'web_search', 'calendar_create'])
+for (const t of ['web_fetch', 'write', 'web_search', 'calendar_create', 'calendar_update'])
   rec('core', 'tools.allow:' + t, allow.includes(t), 'allow=[' + allow.join(',') + ']');
 rec('core', 'plugin:hedwig-proxy', pluginOn('hedwig-proxy'));
 
@@ -129,6 +129,7 @@ const weatherOk = tools.includes('hedwig-cal.fly.dev/weather')
 rec('core', 'TOOLS.md:weather-verbatim', weatherOk,
   weatherOk ? '' : (tools ? 'markers missing/drifted' : 'TOOLS.md unreadable'));
 rec('core', 'TOOLS.md:calendar_create', tools.includes('calendar_create'));
+rec('core', 'TOOLS.md:calendar_update', tools.includes('calendar_update'));
 
 const probe = async (sev, name, url, want) => {
   try {

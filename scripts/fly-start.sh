@@ -183,6 +183,7 @@ cfg.plugins.entries['hedwig-proxy'].enabled = true;
 cfg.tools = cfg.tools || {};
 cfg.tools.allow = cfg.tools.allow || [];
 if (!cfg.tools.allow.includes('calendar_create')) cfg.tools.allow.push('calendar_create');
+if (!cfg.tools.allow.includes('calendar_update')) cfg.tools.allow.push('calendar_update');
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2));
 "
 fi
@@ -401,6 +402,14 @@ start・endの形式: 時刻ありは YYYY-MM-DDTHH:MM（JST）、終日は YYYY
 
 ツールの実行結果（JSON）には report（確定した報告文）が入っている。共通ルールの通り、その report をそのまま伝えること（成否を自分で推測しない）。report が無い／失敗のときは成功扱いにせず「登録できませんでした」と正直に伝える。
 同じ title・開始日時はサーバが重複を検知して既存の予定を返すので、二重登録の心配はない。
+
+既存の予定に「場所」を後から設定するには calendar_update ツールを使う（新しい予定を作らない。calendar_create で同名予定を作り直すのは誤り）:
+
+ツール: calendar_update
+必須パラメーター: date=予定の日付(YYYY-MM-DD) / title=予定の正確なタイトル / location=設定する場所
+
+対象の予定はサーバが date と title の完全一致で特定する。id は渡さない・推測しない。
+結果の report（設定した／設定済み／見つからなかった／同名複数で更新できない）をそのまま伝えること。見つからなかった時に成功と言わない。
 
 ## Gmail 未読メール
 
