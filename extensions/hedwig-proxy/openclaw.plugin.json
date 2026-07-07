@@ -7,7 +7,7 @@
   "name": "Hedwig Proxy",
   "description": "Authenticated write actions against the Hedwig proxy service (calendar).",
   "contracts": {
-    "tools": ["calendar_create"]
+    "tools": ["calendar_create", "calendar_update"]
   },
   "configSchema": {
     "type": "object",
