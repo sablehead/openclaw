@@ -350,6 +350,12 @@ RUN chmod +x /app/brief-sentinel.mjs
 # ground truth for the behavioral-correlation harness (did the owner act on a briefed item).
 COPY --chown=node:node scripts/hedwig-brief-snapshot.mjs /app/hedwig-brief-snapshot.mjs
 RUN chmod +x /app/hedwig-brief-snapshot.mjs
+# Weekly brief "editorial meeting" (command cron, deterministic, no LLM): digests
+# the behavioral-correlation ledger into lift numbers + a rule-based proposal for
+# the owner; silent (NO_REPLY) until the ledger matures. Suggest rung only — it
+# never changes any setting.
+COPY --chown=node:node scripts/hedwig-lift-report.mjs /app/hedwig-lift-report.mjs
+RUN chmod +x /app/hedwig-lift-report.mjs
 
 ENV NODE_ENV=production
 
