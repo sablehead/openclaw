@@ -28,10 +28,12 @@ const MIN_CONTROL = Number(process.env.LIFT_MIN_CONTROL || 60);
 const FORCE = process.env.LIFT_REPORT_FORCE === "1";
 const MATURE_MS = 26 * 3600_000; // past both observe ticks (~10-14h and ~24h)
 
-const silent = (why) => {
-  // stderr keeps the reason findable in the cron run-log; stdout stays exactly
-  // NO_REPLY so the announce delivery is suppressed (quiet weeks are normal).
-  console.error(`lift-report: silent (${why})`);
+const silent = (_why) => {
+  // stdout must be EXACTLY the bare token: with both stdout and stderr present the
+  // command-cron summary becomes "stdout:...\n\nstderr:..." and the NO_REPLY
+  // announce suppression no longer matches (observed live: the debug reason got
+  // delivered to Telegram). Want the gate reason? Run manually — the numbers are
+  // one LIFT_REPORT_FORCE=1 invocation away.
   console.log("NO_REPLY");
   process.exit(0);
 };
