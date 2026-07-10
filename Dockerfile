@@ -356,6 +356,13 @@ RUN chmod +x /app/hedwig-brief-snapshot.mjs
 # never changes any setting.
 COPY --chown=node:node scripts/hedwig-lift-report.mjs /app/hedwig-lift-report.mjs
 RUN chmod +x /app/hedwig-lift-report.mjs
+# Monthly routing cost watch (command cron, deterministic, no LLM): aggregates
+# model.completed token usage from the trajectory logs, prices the gemini-3.1-pro
+# brief-routing surcharge (google runtime leaves cost=0), normalizes by pro's own
+# span, and speaks one monthly line — within band / over ceiling+rollback / reverted.
+# Promotes the manual routing-cost-watch-8-07 reconciliation into an unattended check.
+COPY --chown=node:node scripts/hedwig-cost-watch.mjs /app/hedwig-cost-watch.mjs
+RUN chmod +x /app/hedwig-cost-watch.mjs
 
 ENV NODE_ENV=production
 
