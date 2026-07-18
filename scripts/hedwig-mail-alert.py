@@ -20,10 +20,18 @@ import urllib.request
 base = (os.environ.get("HEDWIG_CAL_BASE") or "").rstrip("/")
 cal_token = os.environ.get("HEDWIG_CAL_TOKEN", "")
 tg_token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-chat_id = os.environ.get("HEDWIG_OWNER_CHAT_ID") or "8709180805"
+# Owner id comes from the secret only. This fork is public, so it must not carry
+# a personal Telegram id as a literal — same rule that keeps HEDWIG_CAL_BASE out.
+chat_id = os.environ.get("HEDWIG_OWNER_CHAT_ID", "")
 
-if not base or not cal_token:
-    print("missing HEDWIG_CAL_BASE / HEDWIG_CAL_TOKEN", file=sys.stderr)
+# Every secret is required up front: serving /alerts advances the server-side
+# cursor, so polling without a way to deliver would drop those alerts for good.
+if not base or not cal_token or not chat_id or not tg_token:
+    print(
+        "missing HEDWIG_CAL_BASE / HEDWIG_CAL_TOKEN / HEDWIG_OWNER_CHAT_ID"
+        " / TELEGRAM_BOT_TOKEN",
+        file=sys.stderr,
+    )
     sys.exit(1)
 
 
@@ -57,9 +65,6 @@ def main():
     alerts = data.get("alerts", [])
     if not alerts:
         print("no new important mail")
-        return
-    if not tg_token:
-        print(f"[no-tg-secret] {len(alerts)} alert(s) suppressed", file=sys.stderr)
         return
     # One DM per poll listing every new line, so a burst is a single notification.
     # Lines are server-confirmed; we add only a fixed header — no model, no summary.

@@ -10,7 +10,7 @@ name: Hedwig mail alert
 #
 # Required repo secrets:
 #   TELEGRAM_BOT_TOKEN   — same value as the fly secret on sableshedwig
-#   HEDWIG_OWNER_CHAT_ID — owner's Telegram user id (optional; has fallback)
+#   HEDWIG_OWNER_CHAT_ID — owner's Telegram user id (required; no literal in this public fork)
 #   HEDWIG_CAL_BASE      — hedwig-cal base URL (kept out of the public fork)
 #   HEDWIG_CAL_TOKEN     — hedwig-cal proxy token (sent as Bearer)
 

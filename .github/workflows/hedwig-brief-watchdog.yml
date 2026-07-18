@@ -5,13 +5,14 @@ name: Hedwig brief watchdog
 # or Telegram delivery path is dead — scenarios the in-VM brief-sentinel.mjs
 # cannot detect.
 #
-# Checks: did the expected brief run within the last 90 minutes AND deliver?
+# Checks: did the brief's own scheduled occurrence run AND deliver? (Anchored to
+# the expected fire time, not a rolling window — GH runners fire 60-260 min late.)
 # Alert path: direct Telegram Bot API call from GH Actions runner (not via VM).
 #
 # Required repo secrets:
 #   FLY_API_TOKEN      — already used by build-hedwig-image.yml
 #   TELEGRAM_BOT_TOKEN — same value as the fly secret on sableshedwig
-#   HEDWIG_OWNER_CHAT_ID — Telegram user id of the owner (optional; has fallback)
+#   HEDWIG_OWNER_CHAT_ID — Telegram user id of the owner (required; no literal in this public fork)
 
 on:
   schedule:
