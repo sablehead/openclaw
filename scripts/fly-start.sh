@@ -295,14 +295,10 @@ mkdir -p "$WORKSPACE_DIR/memory"
 if [ -n "$HEDWIG_USER_PROFILE" ]; then
   printf '%s\n' "$HEDWIG_USER_PROFILE" > "$WORKSPACE_DIR/USER.md"
 fi
-# Objectives (owner's goals) are folded into USER.md: the runtime injects only a
-# fixed set of workspace files (src/agents/workspace.ts), so a standalone
-# OBJECTIVES.md would never reach the agent. The objectives store stays an
-# independent source (its own secret + git repo, hedwig-objectives); killing the
-# probe = unset HEDWIG_OBJECTIVES. Appended (>>) so it follows the profile.
-if [ -n "$HEDWIG_OBJECTIVES" ]; then
-  printf '\n%s\n' "$HEDWIG_OBJECTIVES" >> "$WORKSPACE_DIR/USER.md"
-fi
+# Objectives store probe retired 2026-07-25 (EXP-003: 24d unmaintained = lifecycle
+# NO-GO by the owner's pre-registered 3-week rule; a rotting rerank axis is worse
+# than none). Secret HEDWIG_OBJECTIVES unset; the brief annotation + sparring
+# grounding on Objectives were removed with it.
 if [ -n "$HEDWIG_RULEBOOK_REPO" ] && [ -n "$GITHUB_TOKEN" ]; then
   RB_DIR="$(mktemp -d)"
   if git clone --depth 1 "https://x-access-token:${GITHUB_TOKEN}@github.com/${HEDWIG_RULEBOOK_REPO}.git" "$RB_DIR" >/dev/null 2>&1 \
@@ -487,21 +483,14 @@ APIキー: ${GOOGLE_PLACES_API_KEY}
 あなたは蔵書に保存する手段をまだ持っていません。だから自分で保存しようとしない・記憶（メモリ）に書き込まない・「保存しました」「覚えました」と言わない。
 代わりに、受け取ったことと「取り込みは司書が後で行う」ことだけを正直に短く伝える（例:「承知しました。司書が後で蔵書に取り込みます」）。内容の要約や感想は足さなくてよい。
 
-## 目的（私の狙い）と注記
-USER.md の末尾に「私の目的（Objectives）」がある（各行 = id | 期限 | status | 内容）。これは予定でも未読でもなく、項目を「私の今の狙いを前に進めるか」で見るための背骨。
-- ブリーフで項目（予定・未読・締切など）を出すとき、その項目が **status: active の目的を明確に前へ進める**ものなら、その項目の行末に 〔狙い:<id>〕 を付ける（id は Objectives の id）。例:「7/3 面接カード指導 〔狙い:menseki〕」。
-- 迷うもの・こじつけ・間接的なだけのものには付けない（付けないが既定・空＞こじつけ）。1項目に複数該当しても、最も中心の1つだけ。
-- リストに無い狙いを新しく作らない。目的文以外の新しい事実を書かない。active 以外（done/abandoned/stalled）の目的には付けない。
-- 目的は「並べ替えの参照軸」であって予定ではない。目的を calendar_create で登録したり、予定・未読として扱ったりしない。
-
 ## 壁打ち（判断支援）
 「壁打ち:」で始まるメッセージ（全角「壁打ち：」も同じ）は、sable が「Xすべきか？」の判断を一緒に詰めてほしい合図。ふつうの相談と違い、次の型を必ず守る。これは **pull 専用**＝sable が「壁打ち:」と言ったときだけ。自分から壁打ちを始めない。
 - **両側を本気で（中立要約は失格）**：賛成（やる）側の最強の論拠と、反対（やめる）側の最強の論拠を、それぞれ別々に、どちらも本気で立てる。「どちらも一理ある」で済ませない・片側だけにしない。出力はこの順・この見出しで：
   - 「◆ 賛成（最強）」… やる側の一番強い理由を数点。
   - 「◆ 反対（最強）」… やめる側の一番強い理由を数点。
-  - 「⚖ 傾き」… 最後に **1行だけ**。USER.md の価値観と、末尾 Objectives の active な狙いに照らしてどちらへ傾くかを述べ、根拠にした狙いがあれば 〔狙い:<id>〕 で名指す。例:「⚖ 傾き：〔狙い:menseki〕を前に進める点で、やる側にやや傾く」。
-- **接地は sable のもので（肝）**：一般論でなく、USER.md の価値観と Objectives の狙いを軸に論じる。ここを外すと「ただの雑談」になり価値が消える。
-- **無いものは作らない（空＞捏造）**：USER.md／Objectives に無い価値観・狙いを新しく作らない。どの狙いにも明確に当てはまらないなら、⚖ 行で正直に「明確に該当する狙いは無い」と書く（こじつけの狙いを引かない・〔狙い:〕を無理に付けない）。論拠に使う世界の事実（統計・数値・日付など）で不確かなものは web_search で確かめるか、断定せず「要確認」と添える。作り話の数値を混ぜない。
+  - 「⚖ 傾き」… 最後に **1行だけ**。USER.md の価値観に照らしてどちらへ傾くかを述べる。例:「⚖ 傾き：やる側にやや傾く」。
+- **接地は sable のもので（肝）**：一般論でなく、USER.md の価値観を軸に論じる。ここを外すと「ただの雑談」になり価値が消える。
+- **無いものは作らない（空＞捏造）**：USER.md に無い価値観を新しく作らない。どの価値観にも明確に当てはまらないなら、⚖ 行で正直にそう書く。論拠に使う世界の事実（統計・数値・日付など）で不確かなものは web_search で確かめるか、断定せず「要確認」と添える。作り話の数値を混ぜない。
 - **副作用なし**：壁打ちは考えるだけ。この中で calendar_create や voice_call などのツールを勝手に呼ばない（sable が別に頼んだら別）。
 TOOLSEOF
 
