@@ -364,6 +364,12 @@ RUN chmod +x /app/hedwig-lift-report.mjs
 COPY --chown=node:node scripts/hedwig-cost-watch.mjs /app/hedwig-cost-watch.mjs
 RUN chmod +x /app/hedwig-cost-watch.mjs
 
+# ask-pipe v0 / T1: event-driven mail-alert forwarder (command cron, deterministic,
+# no LLM = ¥0). Stateless — hedwig-cal /alerts owns the dedup cursor. EXP-001
+# (constitution §3.5 experiment lane); reversible via cron delete + this COPY revert.
+COPY --chown=node:node scripts/hedwig-ask-pipe.mjs /app/hedwig-ask-pipe.mjs
+RUN chmod +x /app/hedwig-ask-pipe.mjs
+
 ENV NODE_ENV=production
 
 # Optional: Install skill-dependency CLIs (gh, gemini, clawhub, blogwatcher,
